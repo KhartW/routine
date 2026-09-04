@@ -133,7 +133,7 @@ const CATS=[
  {id:"maybe",title:"Можно сделать",sub:"если захочется",daily:false}];
 const KEY="routine_v1";
 
-let S={items:[],log:{},total:0,snd:true,vib:true,vol:1};
+let S={items:[],log:{},past:{},total:0,snd:true,vib:true,vol:1};
 let menuFor=null,moveFor=null,renaming=null,adding=null,dueFor=null,openClosed={},
     pulse=null,cheerRank=0,burst=false,settings=false;
 
@@ -165,6 +165,19 @@ function dayParts(){
 const dayColor=()=>{const p=dayParts();return p.length?mix(p.map(x=>[x.c,x.w])):null};
 
 /* очки дня: тот же вес, что и у цвета */
+function sweep(){
+  const t=today(); let gone=0;
+  S.items=S.items.filter(it=>{
+    const cat=CATS.find(c=>c.id===it.cat);
+    if(cat&&!cat.daily&&it.done&&it.doneAt&&it.doneAt!==t){
+      S.past[it.doneAt]=Math.round(((S.past[it.doneAt]||0)+(WEIGHT[it.cat]||1))*10)/10;
+      gone++; return false;
+    }
+    return true;
+  });
+  if(gone)store.save();
+  return gone;
+}
 function routineFull(date){
   const r=byCat("routine"); if(!r.length)return false;
   const ids=S.log[date]||[]; return r.every(x=>ids.includes(x.id));
@@ -173,6 +186,7 @@ function scoreOf(date){
   const ids=S.log[date]||[]; let sc=0;
   for(const id of ids){const it=S.items.find(x=>x.id===id); if(it)sc+=WEIGHT[it.cat]||1}
   for(const it of S.items)if(it.done&&it.doneAt===date)sc+=WEIGHT[it.cat]||1;
+  sc+=S.past[date]||0;
   if(routineFull(date))sc+=FULL_BONUS;
   return Math.round(sc*10)/10;
 }
@@ -320,6 +334,7 @@ function dueMeta(it){
 }
 
 function render(){
+  sweep();
   const t=today(),d=doneToday(),routine=byCat("routine");
   const doneR=routine.filter(r=>d.includes(r.id)).length,left=routine.length-doneR;
   const sc=scoreOf(t),bst=best(true),isRec=sc>bst.v&&bst.v>0;
@@ -375,7 +390,7 @@ function render(){
   for(const cat of CATS){
     const list=byCat(cat.id);
     const vis=cat.daily?list:[...list.filter(i=>!i.done),...list.filter(i=>i.done&&i.doneAt===t)];
-    const bur=cat.daily?[]:list.filter(i=>i.done&&i.doneAt!==t);
+    const bur=[];
     h+=`<section><h2>${cat.title}</h2><div class="sub">${cat.sub}</div><div class="list" data-cat="${cat.id}">`;
     if(!vis.length)h+=`<div class="empty">Пусто. Добавь ниже.</div>`;
     for(const it of vis)h+=rowHTML(it,cat,false);
@@ -502,6 +517,6 @@ document.addEventListener("pointerup",()=>{
 addEventListener("pointerdown",()=>{try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();
   if(ac.state==="suspended")ac.resume()}catch(e){}},{once:true});
 
-store.load().then(d=>{if(d&&d.items)S={...S,...d};render()});
+store.load().then(d=>{if(d&&d.items)S={...S,...d};if(!S.past)S.past={};sweep();render()});
 if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 </script></body></html>
