@@ -14,7 +14,7 @@
 <style>
   :root{--bg:#17131f;--surf:#221c2d;--surf2:#2c2439;--line:#332b42;
     --text:#eae4dd;--dim:#8d84a0;--amber:#e0a458;--gold:#f3d29a;--sage:#7fa88b;--red:#c97b7b;
-    --c-routine:#e0a458;--c-wish:#c471a5;--c-needed:#46c48c;--c-maybe:#8f9ad6}
+    --c-routine:#e0457b;--c-wish:#e0a458;--c-needed:#46c48c;--c-maybe:#8f9ad6}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{background:var(--bg)}
   body{margin:0;color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -109,6 +109,19 @@
   .sw{width:44px;height:26px;border-radius:14px;background:var(--line);border:none;position:relative;cursor:pointer;flex:0 0 auto}
   .sw i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--dim);transition:.2s}
   .sw.on{background:#4a3c2a}.sw.on i{left:21px;background:var(--amber)}
+  .flash{position:fixed;inset:0;pointer-events:none;z-index:80;animation:flashin 1.1s ease-out forwards}
+  @keyframes flashin{0%{opacity:0}14%{opacity:.6}100%{opacity:0}}
+  .sparks{position:fixed;inset:0;pointer-events:none;z-index:81;overflow:hidden}
+  .sp{position:absolute;left:50%;top:26vh;width:7px;height:7px;border-radius:50%;
+    animation:fly 1.05s cubic-bezier(.2,.7,.4,1) forwards}
+  @keyframes fly{0%{transform:translate(0,0) scale(1);opacity:1}
+    100%{transform:translate(var(--dx),var(--dy)) scale(.15);opacity:0}}
+  @keyframes swell{0%,100%{transform:scale(1)}30%{transform:scale(1.16)}}
+  .count.swell{animation:swell .8s ease}
+  .bars.merge{gap:0}
+  .bars.merge .bar{border-radius:0}
+  .bars.merge .bar:first-child{border-radius:3px 0 0 3px}
+  .bars.merge .bar:last-child{border-radius:0 3px 3px 0}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style></head><body>
 <div id="app"></div>
@@ -122,10 +135,11 @@ const KEY="routine_v1";
 
 let S={items:[],log:{},total:0,snd:true,vib:true,vol:1};
 let menuFor=null,moveFor=null,renaming=null,adding=null,dueFor=null,openClosed={},
-    pulse=null,cheerRank=0,settings=false;
+    pulse=null,cheerRank=0,burst=false,settings=false;
 
-const ACC={routine:"#e0a458",wish:"#c471a5",needed:"#46c48c",maybe:"#8f9ad6"};
-const WEIGHT={routine:1,wish:2.5,needed:5,maybe:1.5};   // вес = сколько это стоит
+const ACC={routine:"#e0457b",wish:"#e0a458",needed:"#46c48c",maybe:"#8f9ad6"};
+const WEIGHT={routine:2,wish:2.5,needed:5,maybe:1.5};   // вес = сколько это стоит
+const FULL_BONUS=6;                                     // сверху за всю рутину целиком
 
 const hex2rgb=h=>[1,3,5].map(i=>parseInt(h.substr(i,2),16));
 const toLin=v=>{v/=255;return v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4)};
@@ -144,15 +158,22 @@ function dayParts(){
            wish:byCat("wish").filter(w=>d.includes(w.id)).length,
            needed:S.items.filter(i=>i.cat==="needed"&&i.done&&i.doneAt===t).length,
            maybe:S.items.filter(i=>i.cat==="maybe"&&i.done&&i.doneAt===t).length};
-  return Object.keys(n).filter(k=>n[k]).map(k=>({cat:k,n:n[k],w:n[k]*WEIGHT[k],c:ACC[k]}));
+  const full=routineFull(t);
+  return Object.keys(n).filter(k=>n[k]).map(k=>({cat:k,n:n[k],
+    w:n[k]*WEIGHT[k]+(k==="routine"&&full?FULL_BONUS:0),c:ACC[k]}));
 }
 const dayColor=()=>{const p=dayParts();return p.length?mix(p.map(x=>[x.c,x.w])):null};
 
 /* очки дня: тот же вес, что и у цвета */
+function routineFull(date){
+  const r=byCat("routine"); if(!r.length)return false;
+  const ids=S.log[date]||[]; return r.every(x=>ids.includes(x.id));
+}
 function scoreOf(date){
   const ids=S.log[date]||[]; let sc=0;
   for(const id of ids){const it=S.items.find(x=>x.id===id); if(it)sc+=WEIGHT[it.cat]||1}
   for(const it of S.items)if(it.done&&it.doneAt===date)sc+=WEIGHT[it.cat]||1;
+  if(routineFull(date))sc+=FULL_BONUS;
   return Math.round(sc*10)/10;
 }
 function best(exceptToday){
@@ -243,7 +264,7 @@ function toggle(id){
       pulse=id;S.total++;render();
       setTimeout(()=>{it.done=true;it.doneAt=t;pulse=null;
         sound(before,rank(),wasRecord);store.save();render();
-        setTimeout(()=>{cheerRank=0;render()},700)},480);
+        setTimeout(()=>{cheerRank=0;burst=false;render()},1100)},480);
       return;
     }
     it.done=false;delete it.doneAt;
@@ -254,7 +275,8 @@ function toggle(id){
 function reward(id,before,wasRecord){
   pulse=id;S.total++;
   sound(before,rank(),wasRecord);
-  setTimeout(()=>{pulse=null;cheerRank=0;render()},700);
+  setTimeout(()=>{pulse=null;cheerRank=0;render();
+    setTimeout(()=>{burst=false;render()},burst?500:0)},700);
 }
 
 const SCALE=[523.25,587.33,659.25,783.99,880,1046.5,1174.66,1318.51,1567.98,1760,2093];
@@ -265,7 +287,7 @@ function sound(before,after,wasRecord){
 
   // рутина закрылась целиком — единственное отдельное событие
   if(before<1&&after>=1){
-    cheerRank=after;
+    cheerRank=after; burst=true;
     tone([392,523.25,659.25,783.99,1046.5],.5,.34*S.vol,.075);
     buzz([20,40,20,40,20,90]);
     return;
@@ -303,7 +325,7 @@ function render(){
   const sc=scoreOf(t),bst=best(true),isRec=sc>bst.v&&bst.v>0;
   const rk=rank();
 
-  let h=`<div style="display:flex;align-items:center;justify-content:space-between">
+  let h=fx+`<div style="display:flex;align-items:center;justify-content:space-between">
     <h1>${lab(t)}</h1><button class="gear" data-gear="1">${settings?"✕":"⚙"}</button></div>`;
   if(settings)h+=`<div class="panel">
       <label>Звук отметки<button class="sw ${S.snd?"on":""}" data-t="snd"><i></i></button></label>
@@ -314,17 +336,25 @@ function render(){
       <div class="note" id="vibnote">Сегодня ${scoreOf(t)} оч. · рекорд ${best(false).v} оч.</div></div>`;
 
   const parts=dayParts(),col=dayColor();
+  const fx=burst?`<div class="flash" style="background:radial-gradient(circle at 50% 26%, ${
+      col||"var(--c-routine)"}, transparent 62%)"></div>
+    <div class="sparks">${Array.from({length:16},(_,i)=>{
+      const a=(i/16)*Math.PI*2, r=90+Math.random()*130;
+      return `<i class="sp" style="--dx:${Math.round(Math.cos(a)*r)}px;--dy:${
+        Math.round(Math.sin(a)*r-40)}px;background:${i%3?col||"var(--c-routine)":"var(--gold)"};animation-delay:${
+        (i%4)*40}ms"></i>`}).join("")}</div>`:"";
   h+=`<div style="display:flex;align-items:flex-end;gap:10px;margin-top:14px">
-      <div class="count" style="color:${col||"var(--text)"}">${d.length}</div>
+      <div class="count ${burst?"swell":""}" style="color:${col||"var(--text)"}">${d.length}</div>
       <div class="gap" style="color:${col||"var(--dim)"}">${
         routine.length===0?"добавь первый пункт":rk?RANKS[rk].t:`ещё ${left} до полного дня`}</div></div>
-    <div class="bars ${cheerRank?"cheer":""}">
+    <div class="bars ${cheerRank?"cheer":""} ${rk?"merge":""}">
       ${routine.map(r=>`<div class="bar ${d.includes(r.id)?"on":""}" style="${
         d.includes(r.id)&&col?`background:${col};box-shadow:0 0 ${rk?18:12}px ${col}`:""}"></div>`).join("")}</div>
     ${parts.length?`<div class="mixbar">${parts.map(p=>
         `<i style="flex:${p.w};background:${p.c}"></i>`).join("")}</div>
       <div class="mixlab">${parts.map(p=>
-        `<s><b style="background:${p.c}"></b>${NAMES[p.cat]} ×${p.n}</s>`).join("")}</div>`:""}
+        `<s><b style="background:${p.c}"></b>${NAMES[p.cat]} ×${p.n}</s>`).join("")}${
+        routineFull(t)?`<s style="color:var(--c-routine)">+${FULL_BONUS} вся рутина</s>`:""}</div>`:""}
     <div class="week">${days(7).map(x=>{const v=scoreOf(x);
       return `<div class="wk"><i style="height:${Math.min(30,4+v*2)}px;background:${
         v&&v>=bst.v&&bst.v?"var(--gold)":x===t&&v?col||"var(--amber)":v?"var(--sage)":"var(--line)"}"></i><span>${lab(x)}</span></div>`}).join("")}</div>
