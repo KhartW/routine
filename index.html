@@ -13,7 +13,8 @@
 <link rel="icon" href="icon-192.png">
 <style>
   :root{--bg:#17131f;--surf:#221c2d;--surf2:#2c2439;--line:#332b42;
-    --text:#eae4dd;--dim:#8d84a0;--amber:#e0a458;--gold:#f3d29a;--sage:#7fa88b;--red:#c97b7b}
+    --text:#eae4dd;--dim:#8d84a0;--amber:#e0a458;--gold:#f3d29a;--sage:#7fa88b;--red:#c97b7b;
+    --c-routine:#e0a458;--c-wish:#c471a5;--c-needed:#46c48c;--c-maybe:#8f9ad6}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{background:var(--bg)}
   body{margin:0;color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -28,10 +29,11 @@
   .bar{height:6px;flex:1;min-width:3px;border-radius:3px;background:var(--line);
     transition:background .45s,box-shadow .45s,transform .25s}
   .bar.on{background:var(--amber);box-shadow:0 0 12px #e0a45866}
-  .r1 .bar{background:var(--amber);box-shadow:0 0 14px #e0a45888}
-  .r2 .bar{background:var(--gold);box-shadow:0 0 20px #f3d29a99}
-  .r3 .bar{background:var(--sage);box-shadow:0 0 20px #7fa88b99}
-  .r4 .bar{background:linear-gradient(90deg,var(--gold),var(--sage));box-shadow:0 0 26px #f3d29a88,0 0 26px #7fa88b66}
+  .mixbar{display:flex;gap:2px;margin-top:8px;height:9px}
+  .mixbar i{display:block;border-radius:3px;transition:flex-grow .6s ease,background .6s ease}
+  .mixlab{font-size:11px;color:var(--dim);margin-top:7px;display:flex;gap:12px;flex-wrap:wrap}
+  .mixlab s{text-decoration:none;display:flex;align-items:center;gap:5px}
+  .mixlab b{width:8px;height:8px;border-radius:50%;display:inline-block}
   @keyframes wave{0%,100%{transform:scaleY(1)}50%{transform:scaleY(2.8)}}
   .cheer .bar{animation:wave .55s ease}
   .cheer .bar:nth-child(2){animation-delay:.05s}.cheer .bar:nth-child(3){animation-delay:.1s}
@@ -49,8 +51,8 @@
   .row{--acc:var(--amber);position:relative;display:flex;align-items:center;gap:12px;background:var(--surf);
     border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:7px;
     transition:transform .16s,border-color .2s,background .2s}
-  .row.c-routine{--acc:var(--amber)} .row.c-wish{--acc:var(--gold)}
-  .row.c-needed{--acc:var(--sage)}  .row.c-maybe{--acc:#8f9ad6}
+  .row.c-routine{--acc:var(--c-routine)} .row.c-wish{--acc:var(--c-wish)}
+  .row.c-needed{--acc:var(--c-needed)}  .row.c-maybe{--acc:var(--c-maybe)}
   .row.done{border-color:transparent}
   .row.soon{border-color:#e0a45855}
   .row.late{border-color:#c97b7b66}
@@ -122,6 +124,30 @@ let S={items:[],log:{},total:0,snd:true,vib:true,vol:1};
 let menuFor=null,moveFor=null,renaming=null,adding=null,dueFor=null,openClosed={},
     pulse=null,cheerRank=0,settings=false;
 
+const ACC={routine:"#e0a458",wish:"#c471a5",needed:"#46c48c",maybe:"#8f9ad6"};
+const WEIGHT={routine:1,wish:2.5,needed:5,maybe:1.5};   // вес = сколько это стоит
+
+const hex2rgb=h=>[1,3,5].map(i=>parseInt(h.substr(i,2),16));
+const toLin=v=>{v/=255;return v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4)};
+const toSrgb=v=>{const x=v<=.0031308?v*12.92:1.055*Math.pow(v,1/2.4)-.055;
+  return Math.round(Math.max(0,Math.min(1,x))*255)};
+function mix(parts){                      // [[hex,вес],...] -> "rgb(...)"
+  const tot=parts.reduce((a,p)=>a+p[1],0); if(!tot)return null;
+  const acc=[0,0,0];
+  for(const [hex,w] of parts){const c=hex2rgb(hex);
+    for(let i=0;i<3;i++)acc[i]+=toLin(c[i])*w/tot}
+  return `rgb(${acc.map(toSrgb).join(",")})`;
+}
+function dayParts(){
+  const t=today(),d=doneToday();
+  const n={routine:byCat("routine").filter(r=>d.includes(r.id)).length,
+           wish:byCat("wish").filter(w=>d.includes(w.id)).length,
+           needed:S.items.filter(i=>i.cat==="needed"&&i.done&&i.doneAt===t).length,
+           maybe:S.items.filter(i=>i.cat==="maybe"&&i.done&&i.doneAt===t).length};
+  return Object.keys(n).filter(k=>n[k]).map(k=>({cat:k,n:n[k],w:n[k]*WEIGHT[k],c:ACC[k]}));
+}
+const dayColor=()=>{const p=dayParts();return p.length?mix(p.map(x=>[x.c,x.w])):null};
+
 const uid=()=>Math.random().toString(36).slice(2,9);
 const iso=d=>new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);
 const today=()=>iso(new Date());
@@ -176,10 +202,11 @@ function rank(){
 }
 const RANKS={
  0:{t:"",s:[]},
- 1:{t:"день закрыт",s:[523,659,784],v:[20,40,60],c:"var(--amber)"},
- 2:{t:"день закрыт + желательное",s:[587,740,880,988],v:[20,40,20,40,70],c:"var(--gold)"},
- 3:{t:"день закрыт + дело из банка",s:[523,622,784,932],v:[30,50,30,70],c:"var(--sage)"},
- 4:{t:"полный день",s:[523,659,784,1047,1319],v:[20,40,20,40,20,90],c:"var(--gold)"}};
+ 1:{t:"день закрыт",s:[523,659,784],v:[20,40,60]},
+ 2:{t:"день закрыт + желательное",s:[587,740,880,988],v:[20,40,20,40,70]},
+ 3:{t:"день закрыт + дело из банка",s:[523,622,784,932],v:[30,50,30,70]},
+ 4:{t:"полный день",s:[523,659,784,1047,1319],v:[20,40,20,40,20,90]}};
+const NAMES={routine:"рутина",wish:"желательное",needed:"нужное",maybe:"можно"};
 
 function toggle(id){
   const it=S.items.find(x=>x.id===id); if(!it||moveFor)return;
@@ -244,12 +271,18 @@ function render(){
         <button class="ghost" data-vibtest="1">Проверить вибрацию</button></div>
       <div class="note" id="vibnote">Всего отметок: ${S.total}</div></div>`;
 
+  const parts=dayParts(),col=dayColor();
   h+=`<div style="display:flex;align-items:flex-end;gap:10px;margin-top:14px">
-      <div class="count">${d.length}</div>
-      <div class="gap" style="color:${rk?RANKS[rk].c:"var(--dim)"}">${
+      <div class="count" style="color:${col||"var(--text)"}">${d.length}</div>
+      <div class="gap" style="color:${col||"var(--dim)"}">${
         routine.length===0?"добавь первый пункт":rk?RANKS[rk].t:`ещё ${left} до полного дня`}</div></div>
-    <div class="bars r${rk} ${cheerRank?"cheer":""}">
-      ${routine.map(r=>`<div class="bar ${d.includes(r.id)?"on":""}"></div>`).join("")}</div>
+    <div class="bars ${cheerRank?"cheer":""}">
+      ${routine.map(r=>`<div class="bar ${d.includes(r.id)?"on":""}" style="${
+        d.includes(r.id)&&col?`background:${col};box-shadow:0 0 ${rk?18:12}px ${col}`:""}"></div>`).join("")}</div>
+    ${parts.length?`<div class="mixbar">${parts.map(p=>
+        `<i style="flex:${p.w};background:${p.c}"></i>`).join("")}</div>
+      <div class="mixlab">${parts.map(p=>
+        `<s><b style="background:${p.c}"></b>${NAMES[p.cat]} ×${p.n}</s>`).join("")}</div>`:""}
     <div class="week">${days(7).map(x=>{const n=(S.log[x]||[]).length;
       return `<div class="wk"><i style="height:${Math.min(28,4+n*5)}px;background:${x===t?"var(--amber)":n?"var(--sage)":"var(--line)"}"></i><span>${lab(x)}</span></div>`}).join("")}</div>
     <div class="lvl"><div class="lvlbar"><i style="width:${into/STEP*100}%"></i></div>
