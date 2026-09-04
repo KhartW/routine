@@ -118,7 +118,7 @@ const CATS=[
  {id:"wish",title:"Желательное",sub:"хотелось бы, но не обязан",daily:true},
  {id:"needed",title:"Нужно сделать",sub:"без даты",daily:false},
  {id:"maybe",title:"Можно сделать",sub:"если захочется",daily:false}];
-const KEY="routine_v1", STEP=20;
+const KEY="routine_v1";
 
 let S={items:[],log:{},total:0,snd:true,vib:true,vol:1};
 let menuFor=null,moveFor=null,renaming=null,adding=null,dueFor=null,openClosed={},
@@ -147,6 +147,21 @@ function dayParts(){
   return Object.keys(n).filter(k=>n[k]).map(k=>({cat:k,n:n[k],w:n[k]*WEIGHT[k],c:ACC[k]}));
 }
 const dayColor=()=>{const p=dayParts();return p.length?mix(p.map(x=>[x.c,x.w])):null};
+
+/* очки дня: тот же вес, что и у цвета */
+function scoreOf(date){
+  const ids=S.log[date]||[]; let sc=0;
+  for(const id of ids){const it=S.items.find(x=>x.id===id); if(it)sc+=WEIGHT[it.cat]||1}
+  for(const it of S.items)if(it.done&&it.doneAt===date)sc+=WEIGHT[it.cat]||1;
+  return Math.round(sc*10)/10;
+}
+function best(exceptToday){
+  const t=today(); let b={v:0,d:null};
+  const dates=new Set([...Object.keys(S.log),...S.items.filter(i=>i.doneAt).map(i=>i.doneAt)]);
+  for(const d of dates){ if(exceptToday&&d===t)continue;
+    const v=scoreOf(d); if(v>b.v)b={v,d} }
+  return b;
+}
 
 const uid=()=>Math.random().toString(36).slice(2,9);
 const iso=d=>new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);
@@ -211,15 +226,16 @@ const NAMES={routine:"рутина",wish:"желательное",needed:"нуж
 function toggle(id){
   const it=S.items.find(x=>x.id===id); if(!it||moveFor)return;
   const cat=CATS.find(c=>c.id===it.cat),t=today(),before=rank();
+  const wasRecord=scoreOf(t)>best(true).v;
   if(cat.daily){
     const d=doneToday(),has=d.includes(id);
     S.log[t]=has?d.filter(x=>x!==id):[...d,id];
-    if(!has){reward(id,before);store.save();return render()}
+    if(!has){reward(id,before,wasRecord);store.save();return render()}
   }else{
     if(!it.done){
       pulse=id;S.total++;render();
       setTimeout(()=>{it.done=true;it.doneAt=t;pulse=null;
-        sound(before,rank());store.save();render();
+        sound(before,rank(),wasRecord);store.save();render();
         setTimeout(()=>{cheerRank=0;render()},700)},480);
       return;
     }
@@ -228,22 +244,31 @@ function toggle(id){
   store.save();render();
 }
 
-function reward(id,before){
+function reward(id,before,wasRecord){
   pulse=id;S.total++;
-  sound(before,rank());
+  sound(before,rank(),wasRecord);
   setTimeout(()=>{pulse=null;cheerRank=0;render()},700);
 }
 
-function sound(before,after){
-  if(after>before&&RANKS[after].s.length){
-    cheerRank=after;
-    tone(RANKS[after].s,.24,.34*S.vol);
-    buzz(RANKS[after].v);
-  }else if(S.total%STEP===0){
-    tone([494,740],.22,.3*S.vol); buzz([25,45,35]);
-  }else{
-    tone([660],.13,.28*S.vol); buzz(35);
+const SCALE=[523.25,587.33,659.25,783.99,880,1046.5,1174.66,1318.51,1567.98,1760,2093];
+function sound(before,after,wasRecord){
+  const rec=best(true).v, now=scoreOf(today());
+  if(!wasRecord&&rec>0&&now>rec){                    // личный рекорд дня
+    cheerRank=4;
+    tone([659,784,988,1319,1568],.3,.4*S.vol);
+    buzz([25,35,25,35,25,110]);
+    return;
   }
+  if(after>before&&RANKS[after].s.length){           // состав дня сменился
+    cheerRank=after;
+    tone(RANKS[after].s,.26,.36*S.vol); buzz(RANKS[after].v);
+    return;
+  }
+  const step=(S.log[today()]||[]).length + S.items.filter(i=>i.done&&i.doneAt===today()).length;
+  const n=SCALE[Math.min(step,SCALE.length-1)];
+  const vol=(.26+Math.min(step,10)*.012)*S.vol;
+  tone(step>=6?[n,n*1.5]:[n],.14,vol);
+  buzz(30+Math.min(step,8)*3);
 }
 
 /* ---------- отрисовка ---------- */
@@ -258,7 +283,7 @@ function dueMeta(it){
 function render(){
   const t=today(),d=doneToday(),routine=byCat("routine");
   const doneR=routine.filter(r=>d.includes(r.id)).length,left=routine.length-doneR;
-  const lvl=Math.floor(S.total/STEP)+1,into=S.total%STEP;
+  const sc=scoreOf(t),bst=best(true),isRec=sc>bst.v&&bst.v>0;
   const rk=rank();
 
   let h=`<div style="display:flex;align-items:center;justify-content:space-between">
@@ -269,7 +294,7 @@ function render(){
       <label>Вибрация<button class="sw ${S.vib?"on":""}" data-t="vib"><i></i></button></label>
       <div class="acts" style="display:flex;gap:8px;margin-top:6px">
         <button class="ghost" data-vibtest="1">Проверить вибрацию</button></div>
-      <div class="note" id="vibnote">Всего отметок: ${S.total}</div></div>`;
+      <div class="note" id="vibnote">Сегодня ${scoreOf(t)} оч. · рекорд ${best(false).v} оч.</div></div>`;
 
   const parts=dayParts(),col=dayColor();
   h+=`<div style="display:flex;align-items:flex-end;gap:10px;margin-top:14px">
@@ -283,10 +308,13 @@ function render(){
         `<i style="flex:${p.w};background:${p.c}"></i>`).join("")}</div>
       <div class="mixlab">${parts.map(p=>
         `<s><b style="background:${p.c}"></b>${NAMES[p.cat]} ×${p.n}</s>`).join("")}</div>`:""}
-    <div class="week">${days(7).map(x=>{const n=(S.log[x]||[]).length;
-      return `<div class="wk"><i style="height:${Math.min(28,4+n*5)}px;background:${x===t?"var(--amber)":n?"var(--sage)":"var(--line)"}"></i><span>${lab(x)}</span></div>`}).join("")}</div>
-    <div class="lvl"><div class="lvlbar"><i style="width:${into/STEP*100}%"></i></div>
-      <div class="lvltext">ур. ${lvl} · ещё ${STEP-into}</div></div>`;
+    <div class="week">${days(7).map(x=>{const v=scoreOf(x);
+      return `<div class="wk"><i style="height:${Math.min(30,4+v*2)}px;background:${
+        v&&v>=bst.v&&bst.v?"var(--gold)":x===t&&v?col||"var(--amber)":v?"var(--sage)":"var(--line)"}"></i><span>${lab(x)}</span></div>`}).join("")}</div>
+    <div class="lvl"><div class="lvlbar"><i style="width:${bst.v?Math.min(100,sc/bst.v*100):sc?100:0}%;background:${
+        isRec?"var(--gold)":col||"var(--sage)"}"></i></div>
+      <div class="lvltext">${sc} оч.${bst.v?isRec?" · рекорд!":` · рекорд ${bst.v}`:""}</div></div>
+    ${bst.v&&!isRec&&sc<bst.v?`<div style="font-size:11px;color:var(--dim);margin-top:6px">до рекорда ${Math.round((bst.v-sc)*10)/10}${bst.d?` (${lab(bst.d)})`:""}</div>`:""}`;
 
   /* срочное — над рутиной */
   const soon=S.items.filter(i=>{const m=dueMeta(i);return m&&m.show})
