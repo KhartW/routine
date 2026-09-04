@@ -46,26 +46,29 @@
   .lvlbar i{display:block;height:100%;background:var(--sage);transition:width .5s ease}
   .lvltext{font-size:11px;color:var(--dim);white-space:nowrap}
   section{margin-top:30px}
-  .row{position:relative;display:flex;align-items:center;gap:12px;background:var(--surf);
+  .row{--acc:var(--amber);position:relative;display:flex;align-items:center;gap:12px;background:var(--surf);
     border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:7px;
-    transition:transform .16s,border-color .2s,background .2s;overflow:hidden}
+    transition:transform .16s,border-color .2s,background .2s}
+  .row.c-routine{--acc:var(--amber)} .row.c-wish{--acc:var(--gold)}
+  .row.c-needed{--acc:var(--sage)}  .row.c-maybe{--acc:#8f9ad6}
   .row.done{border-color:transparent}
   .row.soon{border-color:#e0a45855}
   .row.late{border-color:#c97b7b66}
   .row.moving{border-color:var(--amber);background:var(--surf2);box-shadow:0 8px 26px #0009;touch-action:none;z-index:40}
   .row.lifting{transition:none;z-index:50}
-  .row::after{content:"";position:absolute;inset:0;pointer-events:none;transform:translateX(-100%);
-    background:linear-gradient(90deg,#e0a45800,#e0a45866,#e0a45800)}
+  .fx{position:absolute;inset:0;border-radius:10px;overflow:hidden;pointer-events:none}
+  .fx::before{content:"";position:absolute;inset:0;transform:translateX(-100%);
+    background:linear-gradient(90deg,transparent,var(--acc),transparent);opacity:.42}
   @keyframes sweep{to{transform:translateX(100%)}}
-  .row.hit::after{animation:sweep .55s ease}
+  .row.hit .fx::before{animation:sweep .55s ease}
   .dot{width:24px;height:24px;flex:0 0 auto;border-radius:50%;border:2px solid var(--line);
     background:none;padding:0;cursor:pointer;position:relative}
-  .dot.on{background:var(--amber);border-color:var(--amber)}
+  .dot.on{background:var(--acc);border-color:var(--acc)}
   @keyframes pop{0%{transform:scale(1)}35%{transform:scale(1.55)}100%{transform:scale(1)}}
   @keyframes ring{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(2.6)}}
   .dot.pop{animation:pop .45s ease}
   .dot.pop::before{content:"";position:absolute;inset:-2px;border-radius:50%;
-    border:2px solid var(--amber);animation:ring .55s ease-out forwards}
+    border:2px solid var(--acc);animation:ring .55s ease-out forwards}
   .txt{flex:1;font-size:16px;cursor:pointer;word-break:break-word}
   .txt.done{color:var(--dim);text-decoration:line-through}
   .when{font-size:11px;color:var(--dim);white-space:nowrap;flex:0 0 auto}
@@ -262,13 +265,15 @@ function render(){
   }
 
   for(const cat of CATS){
-    const list=byCat(cat.id),vis=cat.daily?list:list.filter(i=>!i.done),bur=cat.daily?[]:list.filter(i=>i.done);
+    const list=byCat(cat.id);
+    const vis=cat.daily?list:[...list.filter(i=>!i.done),...list.filter(i=>i.done&&i.doneAt===t)];
+    const bur=cat.daily?[]:list.filter(i=>i.done&&i.doneAt!==t);
     h+=`<section><h2>${cat.title}</h2><div class="sub">${cat.sub}</div><div class="list" data-cat="${cat.id}">`;
     if(!vis.length)h+=`<div class="empty">Пусто. Добавь ниже.</div>`;
     for(const it of vis)h+=rowHTML(it,cat,false);
     h+=`</div>`;
     if(bur.length){
-      h+=`<div class="closed"><span data-closed="${cat.id}">закрыто: ${bur.length} ${openClosed[cat.id]?"▴":"▾"}</span>`;
+      h+=`<div class="closed"><span data-closed="${cat.id}">закрыто раньше: ${bur.length} ${openClosed[cat.id]?"▴":"▾"}</span>`;
       if(openClosed[cat.id])for(const b of bur)h+=`<div><s>${esc(b.text)}</s><b data-toggle="${b.id}">вернуть</b></div>`;
       h+=`</div>`;
     }
@@ -297,7 +302,8 @@ function rowHTML(it,cat,top){
       <button class="ghost" data-cleardue="${it.id}">Убрать срок</button></div></div>`;
   }
   const dn=isDone(it),mv=moveFor===it.id,hit=pulse===it.id,m=dueMeta(it);
-  return `<div class="row ${dn?"done":""} ${mv?"moving":""} ${hit?"hit":""} ${m&&m.show?m.cls:""}" data-id="${it.id}">
+  return `<div class="row c-${it.cat} ${dn?"done":""} ${mv?"moving":""} ${hit?"hit":""} ${m&&m.show?m.cls:""}" data-id="${it.id}">
+    <i class="fx"></i>
     <button class="dot ${dn?"on":""} ${hit?"pop":""}" data-toggle="${it.id}" aria-label="${esc(it.text)}"></button>
     <span class="txt ${dn?"done":""}" data-toggle="${it.id}">${esc(it.text)}</span>
     ${m?`<span class="when ${m.cls}">${m.txt}</span>`:""}
