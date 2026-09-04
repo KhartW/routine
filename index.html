@@ -183,21 +183,28 @@ const store={
 
 /* ---------- отклик ---------- */
 let ac=null;
-function tone(freqs,dur=.16,vol=.3){
+function tone(freqs,dur=.34,vol=.3,gap=.055,echo=true){
   if(!S.snd)return;
   try{
     ac=ac||new (window.AudioContext||window.webkitAudioContext)();
     if(ac.state==="suspended")ac.resume();
-    const master=ac.createGain(); master.gain.value=1; master.connect(ac.destination);
-    freqs.forEach((f,i)=>{
-      const o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime+i*.08;
+    const out=ac.createGain(); out.gain.value=1; out.connect(ac.destination);
+    const play=(f,t,v,d)=>{
+      const o=ac.createOscillator(),g=ac.createGain();
       o.type="triangle";o.frequency.value=f;
-      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.012);
-      g.gain.exponentialRampToValueAtTime(.0001,t+dur);
-      o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+.06);
+      g.gain.setValueAtTime(0,t);
+      g.gain.linearRampToValueAtTime(v,t+.015);
+      g.gain.exponentialRampToValueAtTime(.0001,t+d);
+      o.connect(g);g.connect(out);o.start(t);o.stop(t+d+.08);
+    };
+    freqs.forEach((f,i)=>{
+      const t=ac.currentTime+i*gap;
+      play(f,t,vol,dur);
+      if(echo)play(f*2,t+.11,vol*.16,dur*.8);   // тихий верхний отзвук
     });
   }catch(e){}
 }
+
 function buzz(p){
   if(!S.vib)return false;
   try{return navigator.vibrate? navigator.vibrate(p) : false}catch(e){return false}
@@ -251,24 +258,34 @@ function reward(id,before,wasRecord){
 }
 
 const SCALE=[523.25,587.33,659.25,783.99,880,1046.5,1174.66,1318.51,1567.98,1760,2093];
+
 function sound(before,after,wasRecord){
-  const rec=best(true).v, now=scoreOf(today());
-  if(!wasRecord&&rec>0&&now>rec){                    // личный рекорд дня
-    cheerRank=4;
-    tone([659,784,988,1319,1568],.3,.4*S.vol);
-    buzz([25,35,25,35,25,110]);
-    return;
-  }
-  if(after>before&&RANKS[after].s.length){           // состав дня сменился
+  const t=today();
+  const step=(S.log[t]||[]).length + S.items.filter(i=>i.done&&i.doneAt===t).length;
+
+  // рутина закрылась целиком — единственное отдельное событие
+  if(before<1&&after>=1){
     cheerRank=after;
-    tone(RANKS[after].s,.26,.36*S.vol); buzz(RANKS[after].v);
+    tone([392,523.25,659.25,783.99,1046.5],.5,.34*S.vol,.075);
+    buzz([20,40,20,40,20,90]);
     return;
   }
-  const step=(S.log[today()]||[]).length + S.items.filter(i=>i.done&&i.doneAt===today()).length;
-  const n=SCALE[Math.min(step,SCALE.length-1)];
-  const vol=(.26+Math.min(step,10)*.012)*S.vol;
-  tone(step>=6?[n,n*1.5]:[n],.14,vol);
+
+  // обычная отметка: восходящее трезвучие, выше и плотнее с каждым делом за день
+  const i=Math.min(step,SCALE.length-1), n=SCALE[i];
+  const chord=[n,n*1.25,n*1.5];
+  if(step>=5)chord.push(n*2);
+  const vol=(.24+Math.min(step,10)*.014)*S.vol;
+  tone(chord,.36+Math.min(step,8)*.012,vol,.055);
   buzz(30+Math.min(step,8)*3);
+
+  // рекорд не перебивает звук дела, а добавляет отзвук сверху
+  const rec=best(true).v;
+  if(!wasRecord&&rec>0&&scoreOf(t)>rec){
+    cheerRank=4;
+    setTimeout(()=>tone([n*2,n*2.5,n*3],.5,.2*S.vol,.07),240);
+    buzz([25,35,25,35,25,110]);
+  }
 }
 
 /* ---------- отрисовка ---------- */
@@ -392,7 +409,7 @@ document.addEventListener("click",e=>{
     return}
   const sw=a("t"); if(sw){
     if(sw==="vol")S.vol=S.vol>1?1:1.8; else S[sw]=!S[sw];
-    if(sw!=="vib")tone([660],.13,.28*S.vol); else if(S.vib)buzz(35);
+    if(sw!=="vib")tone([659.25,824,988.9],.36,.3*S.vol,.055); else if(S.vib)buzz(35);
     store.save();return render()}
   const tg=a("toggle"); if(tg&&!moveFor)return toggle(tg);
   const m=a("menu"); if(m){menuFor=menuFor===m?null:m;return render()}
