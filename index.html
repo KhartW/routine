@@ -324,6 +324,14 @@ function render(){
   const doneR=routine.filter(r=>d.includes(r.id)).length,left=routine.length-doneR;
   const sc=scoreOf(t),bst=best(true),isRec=sc>bst.v&&bst.v>0;
   const rk=rank();
+  const parts=dayParts(),col=dayColor();
+  const fx=burst?`<div class="flash" style="background:radial-gradient(circle at 50% 26%, ${
+      col||"var(--c-routine)"}, transparent 62%)"></div>
+    <div class="sparks">${Array.from({length:16},(_,i)=>{
+      const a=(i/16)*Math.PI*2, r=90+Math.random()*130;
+      return `<i class="sp" style="--dx:${Math.round(Math.cos(a)*r)}px;--dy:${
+        Math.round(Math.sin(a)*r-40)}px;background:${i%3?col||"var(--c-routine)":"var(--gold)"};animation-delay:${
+        (i%4)*40}ms"></i>`}).join("")}</div>`:"";
 
   let h=fx+`<div style="display:flex;align-items:center;justify-content:space-between">
     <h1>${lab(t)}</h1><button class="gear" data-gear="1">${settings?"✕":"⚙"}</button></div>`;
@@ -335,14 +343,6 @@ function render(){
         <button class="ghost" data-vibtest="1">Проверить вибрацию</button></div>
       <div class="note" id="vibnote">Сегодня ${scoreOf(t)} оч. · рекорд ${best(false).v} оч.</div></div>`;
 
-  const parts=dayParts(),col=dayColor();
-  const fx=burst?`<div class="flash" style="background:radial-gradient(circle at 50% 26%, ${
-      col||"var(--c-routine)"}, transparent 62%)"></div>
-    <div class="sparks">${Array.from({length:16},(_,i)=>{
-      const a=(i/16)*Math.PI*2, r=90+Math.random()*130;
-      return `<i class="sp" style="--dx:${Math.round(Math.cos(a)*r)}px;--dy:${
-        Math.round(Math.sin(a)*r-40)}px;background:${i%3?col||"var(--c-routine)":"var(--gold)"};animation-delay:${
-        (i%4)*40}ms"></i>`}).join("")}</div>`:"";
   h+=`<div style="display:flex;align-items:flex-end;gap:10px;margin-top:14px">
       <div class="count ${burst?"swell":""}" style="color:${col||"var(--text)"}">${d.length}</div>
       <div class="gap" style="color:${col||"var(--dim)"}">${
