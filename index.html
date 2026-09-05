@@ -56,6 +56,8 @@
   .row.done{border-color:transparent}
   .row.soon{border-color:#e0a45855}
   .row.late{border-color:#c97b7b66}
+  body.dragmode{touch-action:none;overscroll-behavior:none}
+  body.dragmode .row{touch-action:none}
   .row.moving{border-color:var(--amber);background:var(--surf2);box-shadow:0 8px 26px #0009;touch-action:none;z-index:40}
   .row.lifting{transition:none;z-index:50}
   .fx{position:absolute;inset:0;border-radius:10px;overflow:hidden;pointer-events:none}
@@ -91,9 +93,11 @@
   .addbtn{background:none;border:1px dashed var(--line);border-radius:10px;padding:11px 14px;
     color:var(--dim);font-size:14px;width:100%;text-align:left;cursor:pointer;margin-top:4px}
   .addrow{display:flex;gap:8px;margin-top:8px}
-  input{flex:1;background:var(--surf);border:1px solid var(--line);border-radius:10px;
-    padding:13px 14px;color:var(--text);font-size:16px}
-  .ok{background:var(--amber);border:none;border-radius:10px;padding:0 18px;color:var(--bg);font-size:15px;cursor:pointer}
+  input{flex:1 1 auto;min-width:0;width:100%;background:var(--surf);border:1px solid var(--line);
+    border-radius:10px;padding:13px 14px;color:var(--text);font-size:16px}
+  .row input{background:var(--bg)}
+  .ok{flex:0 0 auto;background:var(--amber);border:none;border-radius:10px;padding:12px 16px;
+    color:var(--bg);font-size:15px;cursor:pointer;white-space:nowrap}
   .ghost{background:none;border:1px solid var(--line);border-radius:10px;padding:9px 14px;color:var(--dim);font-size:14px;cursor:pointer}
   .empty{color:var(--dim);font-size:13px;padding:6px 0}
   .closed{color:var(--dim);font-size:12px;margin-top:6px}
@@ -407,6 +411,7 @@ function render(){
   if(menuFor)h=`<div class="scrim" data-close="1"></div>`+h;
   if(moveFor)h+=`<button class="donebar" data-endmove="1">Готово — порядок сохранён</button>`;
   document.getElementById("app").innerHTML=h;
+  document.body&&document.body.classList.toggle("dragmode",!!moveFor);
   const f=document.getElementById("rn")||document.getElementById("ad");
   if(f){f.focus();f.setSelectionRange(f.value.length,f.value.length)}
 }
@@ -486,12 +491,14 @@ document.addEventListener("keydown",e=>{if(e.key!=="Enter")return;
   else if(document.getElementById("ad"))document.querySelector("[data-add]")?.click()});
 
 let drag=null;
-document.addEventListener("pointerdown",e=>{
-  if(!moveFor)return;
+function startDrag(e){
+  if(!moveFor||drag)return;
   const row=e.target.closest(".row"); if(!row||row.dataset.id!==moveFor)return;
   e.preventDefault();row.classList.add("lifting");
   drag={row,startY:e.clientY,list:row.parentElement};
-  row.setPointerCapture?.(e.pointerId)});
+  try{row.setPointerCapture&&row.setPointerCapture(e.pointerId)}catch(err){}
+}
+document.addEventListener("pointerdown",startDrag,{passive:false});
 document.addEventListener("pointermove",e=>{
   if(!drag)return; e.preventDefault();
   drag.row.style.transform=`translateY(${e.clientY-drag.startY}px)`;
@@ -504,14 +511,19 @@ document.addEventListener("pointermove",e=>{
     if(mid>n.top+n.height/2){drag.list.insertBefore(next,drag.row);drag.startY+=n.height+7;
       drag.row.style.transform=`translateY(${e.clientY-drag.startY}px)`}}
   if(e.clientY<90)scrollBy(0,-9);else if(e.clientY>innerHeight-90)scrollBy(0,9)},{passive:false});
-document.addEventListener("pointerup",()=>{
+function endDrag(){
   if(!drag)return;
   drag.row.style.transform="";drag.row.classList.remove("lifting");
   const cat=drag.list.dataset.cat,order=[...drag.list.querySelectorAll(".row")].map(r=>r.dataset.id);
   const map=Object.fromEntries(byCat(cat).map(i=>[i.id,i]));
   const q=[...order.map(id=>map[id]).filter(Boolean),...byCat(cat).filter(i=>!order.includes(i.id))];
   let k=0;S.items=S.items.map(i=>i.cat===cat?q[k++]:i);
-  drag=null;store.save()});
+  drag=null;store.save();
+}
+document.addEventListener("pointerup",endDrag);
+document.addEventListener("pointercancel",endDrag);
+document.addEventListener("touchend",endDrag);
+document.addEventListener("touchcancel",endDrag);
 
 /* первое касание разблокирует звук в Chrome */
 addEventListener("pointerdown",()=>{try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();
