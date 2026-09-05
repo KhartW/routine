@@ -40,24 +40,24 @@
   .cheer .bar:nth-child(4){animation-delay:.15s}.cheer .bar:nth-child(5){animation-delay:.2s}
   .cheer .bar:nth-child(6){animation-delay:.25s}.cheer .bar:nth-child(7){animation-delay:.3s}
   .bars{position:relative}
-  .bars.fx1::after,.bars.fx2::after,.bars.fx3::after,
-  .lvlbar.fx1::after,.lvlbar.fx2::after,.lvlbar.fx3::after{
-    content:"";position:absolute;left:-3px;right:-3px;top:-8px;bottom:-4px;
-    pointer-events:none;border-radius:8px;background-size:220% 100%;
-    animation:flow 2.6s linear infinite, flick .5s ease-in-out infinite alternate}
+  .flames{position:absolute;left:-6px;right:-6px;bottom:-3px;height:42px;pointer-events:none;
+    background:repeating-radial-gradient(ellipse 34px 40px at 17px 100%,
+      var(--core) 0 3px, var(--mid) 3px 9px, var(--edge) 9px 19px, transparent 19px 34px);
+    background-size:34px 100%;
+    -webkit-mask-image:linear-gradient(to top,#000 0,#000 18%,rgba(0,0,0,.55) 55%,transparent 95%);
+    mask-image:linear-gradient(to top,#000 0,#000 18%,rgba(0,0,0,.55) 55%,transparent 95%);
+    mix-blend-mode:screen;filter:url(#fireturb) blur(1.4px);
+    animation:drift 1.5s linear infinite, lick .26s steps(2) infinite alternate}
+  @keyframes drift{to{background-position:-34px 0}}
+  @keyframes lick{from{opacity:.72;transform:scaleY(.9)}to{opacity:1;transform:scaleY(1.18)}}
+  /* палитры по тирам */
+  .fx1 .flames{--core:#f3e0ff;--mid:#b57bff;--edge:#6a2fd0;animation-duration:2.6s,.5s;height:34px}
+  .fx2 .flames{--core:#fff6d0;--mid:#ffc247;--edge:#ff5a1f}
+  .fx3 .flames{--core:#ffe6f0;--mid:#ff5d92;--edge:#c8104a;animation-duration:1.1s,.2s;height:48px}
+  .fx2 .bar,.fx3 .bar{box-shadow:0 0 16px var(--glowc),0 0 4px #fff8}
+  .fx2{--glowc:#ffae3a}.fx3{--glowc:#ff4a86}.fx1{--glowc:#a55ce0}
   .lvlbar{position:relative;overflow:visible}
-  .lvlbar.fx1::after,.lvlbar.fx2::after,.lvlbar.fx3::after{top:-6px;bottom:-6px;filter:blur(5px);opacity:.7}
-  /* эпический — холодный перелив */
-  .fx1::after{background:linear-gradient(90deg,#a55ce000,#c98cff99,#a55ce033,#e0b3ff88,#a55ce000);
-    filter:blur(7px);animation-duration:3.4s,1.4s}
-  /* легендарный — огонь */
-  .fx2::after{background:linear-gradient(90deg,#ff8a2b00,#ffb347cc,#ff6a1fbb,#ffd98acc,#ff8a2b00);
-    filter:blur(7px);animation-duration:2.2s,.42s}
-  /* мифический — сильный огонь */
-  .fx3::after{background:linear-gradient(90deg,#e0457b00,#ff5d92dd,#ff2e6bcc,#ffc46edd,#e0457b00);
-    filter:blur(9px);animation-duration:1.5s,.3s}
-  @keyframes flow{to{background-position:220% 0}}
-  @keyframes flick{from{opacity:.55;transform:scaleY(1)}to{opacity:1;transform:scaleY(1.25)}}
+  .lvlbar .flames{height:22px;filter:url(#fireturb) blur(1px);opacity:.8}
   .embers{position:absolute;left:0;right:0;bottom:0;height:1px;pointer-events:none}
   .em{position:absolute;bottom:0;width:4px;height:4px;border-radius:50%;opacity:0;
     animation:rise 1.9s ease-out infinite}
@@ -166,6 +166,15 @@
   .bars.merge .bar:last-child{border-radius:0 3px 3px 0}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style></head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="fireturb"
+   x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+  <feTurbulence type="fractalNoise" baseFrequency="0.028 0.07" numOctaves="3" seed="5" result="n">
+    <animate attributeName="baseFrequency" dur="5s" repeatCount="indefinite"
+      values="0.028 0.07;0.045 0.11;0.02 0.06;0.028 0.07"/>
+    <animate attributeName="seed" dur="2s" repeatCount="indefinite" values="5;9;3;7;5"/>
+  </feTurbulence>
+  <feDisplacementMap in="SourceGraphic" in2="n" scale="15" xChannelSelector="R" yChannelSelector="G"/>
+</filter></svg>
 <div id="app"></div>
 <script>
 const CATS=[
@@ -173,7 +182,7 @@ const CATS=[
  {id:"wish",title:"Желательное",sub:"хотелось бы, но не обязан",daily:true},
  {id:"needed",title:"Нужно сделать",sub:"без даты",daily:false},
  {id:"maybe",title:"Можно сделать",sub:"если захочется",daily:false}];
-const KEY="routine_v1", VERSION="0.6.0";
+const KEY="routine_v1", VERSION="0.6.1";
 
 let S={items:[],log:{},past:{},total:0,snd:true,vib:true,vol:1};
 let menuFor=null,moveFor=null,renaming=null,adding=null,dueFor=null,openClosed={},
@@ -450,6 +459,7 @@ function render(){
       <div class="gap" style="color:${tc}">${
         routine.length===0?"добавь первый пункт":rk?RANKS[rk].t:`ещё ${left} до полного дня`}</div></div>
     <div class="bars ${cheerRank?"cheer":""} ${rk?"merge":""} ${TI.i>=4?"fx"+(TI.i-3):""}">
+      ${TI.i>=4?`<div class="flames"></div>`:""}
       ${TI.i>=5?`<div class="embers">${Array.from({length:9},(_,k)=>
         `<i class="em" style="left:${6+k*11}%;background:${k%2?TI.t.c:"#ffc46e"};animation-delay:${
           (k*210)%1900}ms"></i>`).join("")}</div>`:""}
@@ -463,7 +473,8 @@ function render(){
     <div class="week">${days(7).map(x=>{const v=scoreOf(x);
       return `<div class="wk"><i style="height:${Math.min(30,4+v*2)}px;background:${
         v?tierOf(v).t.c:"var(--line)"};opacity:${x===t?1:.75}"></i><span>${lab(x)}</span></div>`}).join("")}</div>
-    <div class="lvl"><div class="lvlbar ${TI.i>=4?"fx"+(TI.i-3):""}"><i style="width:${Math.round(TI.prog*100)}%;background:linear-gradient(90deg,${
+    <div class="lvl"><div class="lvlbar ${TI.i>=4?"fx"+(TI.i-3):""}">${
+        TI.i>=4?`<div class="flames"></div>`:""}<i style="width:${Math.round(TI.prog*100)}%;background:linear-gradient(90deg,${
         tc},${TI.next?TI.next.c:tc})"></i></div>
       <div class="lvltext" style="color:${tc}">${sc} оч. · ${TI.t.name}</div></div>
     <div style="font-size:11px;color:var(--dim);margin-top:6px">${
