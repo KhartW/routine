@@ -40,29 +40,26 @@
   .cheer .bar:nth-child(4){animation-delay:.15s}.cheer .bar:nth-child(5){animation-delay:.2s}
   .cheer .bar:nth-child(6){animation-delay:.25s}.cheer .bar:nth-child(7){animation-delay:.3s}
   .bars{position:relative}
-  .flames{position:absolute;left:-6px;right:-6px;bottom:-3px;height:42px;pointer-events:none;
-    background:repeating-radial-gradient(ellipse 34px 40px at 17px 100%,
-      var(--core) 0 3px, var(--mid) 3px 9px, var(--edge) 9px 19px, transparent 19px 34px);
-    background-size:34px 100%;
-    -webkit-mask-image:linear-gradient(to top,#000 0,#000 18%,rgba(0,0,0,.55) 55%,transparent 95%);
-    mask-image:linear-gradient(to top,#000 0,#000 18%,rgba(0,0,0,.55) 55%,transparent 95%);
-    mix-blend-mode:screen;filter:url(#fireturb) blur(1.4px);
-    animation:drift 1.5s linear infinite, lick .26s steps(2) infinite alternate}
-  @keyframes drift{to{background-position:-34px 0}}
-  @keyframes lick{from{opacity:.72;transform:scaleY(.9)}to{opacity:1;transform:scaleY(1.18)}}
-  /* палитры по тирам */
-  .fx1 .flames{--core:#f3e0ff;--mid:#b57bff;--edge:#6a2fd0;animation-duration:2.6s,.5s;height:34px}
-  .fx2 .flames{--core:#fff6d0;--mid:#ffc247;--edge:#ff5a1f}
-  .fx3 .flames{--core:#ffe6f0;--mid:#ff5d92;--edge:#c8104a;animation-duration:1.1s,.2s;height:48px}
-  .fx2 .bar,.fx3 .bar{box-shadow:0 0 16px var(--glowc),0 0 4px #fff8}
-  .fx2{--glowc:#ffae3a}.fx3{--glowc:#ff4a86}.fx1{--glowc:#a55ce0}
+  .wire,.wire2{position:absolute;left:0;right:0;top:50%;pointer-events:none;
+    transform:translateY(-50%);mix-blend-mode:screen;
+    background-size:170% 100%;background-repeat:repeat-x;
+    animation:run 1.5s linear infinite}
+  .wire{height:4px;filter:url(#wireturb) blur(.5px);
+    background:linear-gradient(90deg,transparent 0 4%,#fff 7%,var(--edge) 11%,transparent 19% 41%,
+      #fff 46%,var(--edge) 50%,transparent 58% 74%,#fff 78%,var(--edge) 82%,transparent 89% 100%)}
+  .wire2{height:12px;filter:url(#wireturb) blur(4px);opacity:.55;animation-duration:2.3s;
+    background:linear-gradient(90deg,transparent 0 8%,var(--mid) 16%,transparent 30% 52%,
+      var(--mid) 62%,transparent 76% 100%)}
+  @keyframes run{to{background-position:-170% 0}}
+  .fx1{--edge:#c9a0ff;--mid:#8b4fd8;--glowc:#a55ce0}
+  .fx2{--edge:#ffd27a;--mid:#ff8a2b;--glowc:#ffae3a}
+  .fx3{--edge:#ffb3cc;--mid:#ff2e6b;--glowc:#ff4a86}
+  .fx2 .wire{animation-duration:1.1s}.fx2 .wire2{animation-duration:1.8s}
+  .fx3 .wire{animation-duration:.75s}.fx3 .wire2{animation-duration:1.3s}
+  .fx2 .bar,.fx3 .bar{box-shadow:0 0 14px var(--glowc),0 0 3px #fff9}
+  .fx1 .bar{box-shadow:0 0 12px var(--glowc)}
   .lvlbar{position:relative;overflow:visible}
-  .lvlbar .flames{height:22px;filter:url(#fireturb) blur(1px);opacity:.8}
-  .embers{position:absolute;left:0;right:0;bottom:0;height:1px;pointer-events:none}
-  .em{position:absolute;bottom:0;width:4px;height:4px;border-radius:50%;opacity:0;
-    animation:rise 1.9s ease-out infinite}
-  @keyframes rise{0%{opacity:0;transform:translateY(0) scale(1)}
-    18%{opacity:.95}100%{opacity:0;transform:translateY(-46px) scale(.25)}}
+  .lvlbar .wire{height:3px}.lvlbar .wire2{height:8px;opacity:.4}
   .week{display:flex;gap:6px;margin-top:20px;align-items:flex-end}
   .wk{flex:1;text-align:center}
   .wk i{display:block;border-radius:2px;background:var(--line);transition:height .4s}
@@ -166,14 +163,14 @@
   .bars.merge .bar:last-child{border-radius:0 3px 3px 0}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style></head><body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="fireturb"
-   x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
-  <feTurbulence type="fractalNoise" baseFrequency="0.028 0.07" numOctaves="3" seed="5" result="n">
-    <animate attributeName="baseFrequency" dur="5s" repeatCount="indefinite"
-      values="0.028 0.07;0.045 0.11;0.02 0.06;0.028 0.07"/>
-    <animate attributeName="seed" dur="2s" repeatCount="indefinite" values="5;9;3;7;5"/>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="wireturb"
+   x="-10%" y="-60%" width="120%" height="220%" color-interpolation-filters="sRGB">
+  <feTurbulence type="fractalNoise" baseFrequency="0.09 0.012" numOctaves="2" seed="3" result="n">
+    <animate attributeName="baseFrequency" dur="3.2s" repeatCount="indefinite"
+      values="0.09 0.012;0.14 0.02;0.07 0.009;0.09 0.012"/>
+    <animate attributeName="seed" dur="1.6s" repeatCount="indefinite" values="3;8;2;6;3"/>
   </feTurbulence>
-  <feDisplacementMap in="SourceGraphic" in2="n" scale="15" xChannelSelector="R" yChannelSelector="G"/>
+  <feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G"/>
 </filter></svg>
 <div id="app"></div>
 <script>
@@ -182,7 +179,7 @@ const CATS=[
  {id:"wish",title:"Желательное",sub:"хотелось бы, но не обязан",daily:true},
  {id:"needed",title:"Нужно сделать",sub:"без даты",daily:false},
  {id:"maybe",title:"Можно сделать",sub:"если захочется",daily:false}];
-const KEY="routine_v1", VERSION="0.6.1";
+const KEY="routine_v1", VERSION="0.6.2";
 
 let S={items:[],log:{},past:{},total:0,snd:true,vib:true,vol:1};
 let menuFor=null,moveFor=null,renaming=null,adding=null,dueFor=null,openClosed={},
@@ -459,10 +456,7 @@ function render(){
       <div class="gap" style="color:${tc}">${
         routine.length===0?"добавь первый пункт":rk?RANKS[rk].t:`ещё ${left} до полного дня`}</div></div>
     <div class="bars ${cheerRank?"cheer":""} ${rk?"merge":""} ${TI.i>=4?"fx"+(TI.i-3):""}">
-      ${TI.i>=4?`<div class="flames"></div>`:""}
-      ${TI.i>=5?`<div class="embers">${Array.from({length:9},(_,k)=>
-        `<i class="em" style="left:${6+k*11}%;background:${k%2?TI.t.c:"#ffc46e"};animation-delay:${
-          (k*210)%1900}ms"></i>`).join("")}</div>`:""}
+      ${TI.i>=4?`<div class="wire2"></div><div class="wire"></div>`:""}
       ${routine.map(r=>`<div class="bar ${d.includes(r.id)?"on":""}" style="${
         d.includes(r.id)?`background:${tc};box-shadow:0 0 ${rk?18:12}px ${tc}`:""}"></div>`).join("")}</div>
     ${parts.length?`<div class="mixbar">${parts.map(p=>
@@ -474,7 +468,7 @@ function render(){
       return `<div class="wk"><i style="height:${Math.min(30,4+v*2)}px;background:${
         v?tierOf(v).t.c:"var(--line)"};opacity:${x===t?1:.75}"></i><span>${lab(x)}</span></div>`}).join("")}</div>
     <div class="lvl"><div class="lvlbar ${TI.i>=4?"fx"+(TI.i-3):""}">${
-        TI.i>=4?`<div class="flames"></div>`:""}<i style="width:${Math.round(TI.prog*100)}%;background:linear-gradient(90deg,${
+        TI.i>=4?`<div class="wire2"></div><div class="wire"></div>`:""}<i style="width:${Math.round(TI.prog*100)}%;background:linear-gradient(90deg,${
         tc},${TI.next?TI.next.c:tc})"></i></div>
       <div class="lvltext" style="color:${tc}">${sc} оч. · ${TI.t.name}</div></div>
     <div style="font-size:11px;color:var(--dim);margin-top:6px">${
