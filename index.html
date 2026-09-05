@@ -40,27 +40,18 @@
   .cheer .bar:nth-child(4){animation-delay:.15s}.cheer .bar:nth-child(5){animation-delay:.2s}
   .cheer .bar:nth-child(6){animation-delay:.25s}.cheer .bar:nth-child(7){animation-delay:.3s}
   .bars{position:relative}
-  .wire,.wire2{position:absolute;left:0;right:0;top:50%;pointer-events:none;
-    transform:translateY(-50%);mix-blend-mode:screen;background-repeat:repeat-x;
-    background-size:200px 100%}
-  /* период ровно 200px и сдвиг ровно на 200px — стык кадра невидим */
-  .wire{height:6px;filter:url(#wireturb) blur(.6px);
-    background:linear-gradient(90deg,var(--mid) 0,#fff 12%,var(--edge) 26%,#fff 44%,
-      var(--mid) 58%,#fff 76%,var(--edge) 88%,var(--mid) 100%);
-    animation:flow 1.5s linear infinite}
-  .wire2{height:20px;filter:url(#wireturb) blur(6px);opacity:.5;
-    background:linear-gradient(90deg,var(--mid) 0,var(--edge) 25%,var(--mid) 50%,
-      var(--edge) 75%,var(--mid) 100%);
-    animation:flow 2.3s linear infinite}
-  @keyframes flow{from{background-position:0 0}to{background-position:200px 0}}
+  .wave{position:absolute;left:0;width:100%;top:50%;transform:translateY(-50%);
+    pointer-events:none;mix-blend-mode:screen;overflow:visible;height:26px}
+  .wave .halo{stroke:var(--mid);stroke-width:7;opacity:.5;filter:blur(4px)}
+  .wave .core{stroke:var(--edge);stroke-width:2.6;filter:blur(.5px)}
+  .wave .hot{stroke:#fff;stroke-width:1.1;opacity:.9}
   @keyframes breathe{0%,100%{box-shadow:0 0 12px var(--glowc)}50%{box-shadow:0 0 22px var(--glowc),0 0 5px #fff9}}
   .fx1{--edge:#c9a0ff;--mid:#7b3fd0;--glowc:#a55ce0}
   .fx2{--edge:#ffd27a;--mid:#ff7a1f;--glowc:#ffae3a}
-  .fx3{--edge:#ffb3cc;--mid:#e0104f;--glowc:#ff4a86}
-  .fx2 .wire{animation-duration:1.05s}.fx2 .wire2{animation-duration:1.7s}
-  .fx3 .wire{animation-duration:.7s}.fx3 .wire2{animation-duration:1.15s}
+  .fx3{--edge:#ffb3cc;--mid:#ff2e6b;--glowc:#ff4a86}
   .fx1 .bar,.fx2 .bar,.fx3 .bar{animation:breathe 2.4s ease-in-out infinite}
   .fx2 .bar{animation-duration:1.8s}.fx3 .bar{animation-duration:1.2s}
+  .lvlbar .wave{height:16px}
   .lvlbar{position:relative;overflow:visible}
   .lvlbar .wire{height:3px}.lvlbar .wire2{height:8px;opacity:.4}
   .week{display:flex;gap:6px;margin-top:20px;align-items:flex-end}
@@ -166,14 +157,7 @@
   .bars.merge .bar:last-child{border-radius:0 3px 3px 0}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style></head><body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="wireturb"
-   x="-15%" y="-260%" width="130%" height="620%" color-interpolation-filters="sRGB">
-  <feTurbulence type="fractalNoise" baseFrequency="0.019 0.005" numOctaves="2" seed="4" result="n">
-    <animate attributeName="baseFrequency" dur="7s" repeatCount="indefinite"
-      values="0.019 0.005;0.027 0.008;0.014 0.004;0.019 0.005"/>
-  </feTurbulence>
-  <feDisplacementMap in="SourceGraphic" in2="n" scale="15" xChannelSelector="R" yChannelSelector="G"/>
-</filter></svg>
+
 <div id="app"></div>
 <script>
 const CATS=[
@@ -181,7 +165,7 @@ const CATS=[
  {id:"wish",title:"Желательное",sub:"хотелось бы, но не обязан",daily:true},
  {id:"needed",title:"Нужно сделать",sub:"без даты",daily:false},
  {id:"maybe",title:"Можно сделать",sub:"если захочется",daily:false}];
-const KEY="routine_v1", VERSION="0.6.4";
+const KEY="routine_v1", VERSION="0.7.0";
 
 let S={items:[],log:{},past:{},total:0,snd:true,vib:true,vol:1};
 let menuFor=null,moveFor=null,renaming=null,adding=null,dueFor=null,openClosed={},
@@ -250,6 +234,25 @@ function best(exceptToday){
   for(const d of dates){ if(exceptToday&&d===t)continue;
     const v=scoreOf(d); if(v>b.v)b={v,d} }
   return b;
+}
+
+const WAVE_P=50, WAVE_W=600;                    // период и длина полотна
+function wavePath(amp,y){                        // синус из кубических дуг, ровно по периодам
+  let d=`M0,${y}`;
+  for(let x=0;x<WAVE_W;x+=WAVE_P){
+    d+=` C${x+WAVE_P*.25},${y-amp} ${x+WAVE_P*.25},${y-amp} ${x+WAVE_P*.5},${y}`
+     + ` C${x+WAVE_P*.75},${y+amp} ${x+WAVE_P*.75},${y+amp} ${x+WAVE_P},${y}`;
+  }
+  return d;
+}
+function waveSVG(speed,amp){
+  const y=20, d=wavePath(amp,y);
+  return `<svg class="wave" viewBox="0 ${y-14} 300 28" preserveAspectRatio="none" aria-hidden="true">
+    <g><animateTransform attributeName="transform" type="translate" from="0 0" to="-${WAVE_P} 0"
+        dur="${speed}s" repeatCount="indefinite"/>
+      <path class="halo" fill="none" d="${d}"/>
+      <path class="core" fill="none" d="${d}"/>
+      <path class="hot"  fill="none" d="${d}"/></g></svg>`;
 }
 
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -458,7 +461,7 @@ function render(){
       <div class="gap" style="color:${tc}">${
         routine.length===0?"добавь первый пункт":rk?RANKS[rk].t:`ещё ${left} до полного дня`}</div></div>
     <div class="bars ${cheerRank?"cheer":""} ${rk?"merge":""} ${TI.i>=4?"fx"+(TI.i-3):""}">
-      ${TI.i>=4?`<div class="wire2"></div><div class="wire"></div>`:""}
+      ${TI.i>=4?waveSVG([1.9,1.3,.85][TI.i-4],[3.4,4.2,5][TI.i-4]):""}
       ${routine.map(r=>`<div class="bar ${d.includes(r.id)?"on":""}" style="${
         d.includes(r.id)?`background:${tc};box-shadow:0 0 ${rk?18:12}px ${tc}`:""}"></div>`).join("")}</div>
     ${parts.length?`<div class="mixbar">${parts.map(p=>
@@ -470,7 +473,7 @@ function render(){
       return `<div class="wk"><i style="height:${Math.min(30,4+v*2)}px;background:${
         v?tierOf(v).t.c:"var(--line)"};opacity:${x===t?1:.75}"></i><span>${lab(x)}</span></div>`}).join("")}</div>
     <div class="lvl"><div class="lvlbar ${TI.i>=4?"fx"+(TI.i-3):""}">${
-        TI.i>=4?`<div class="wire2"></div><div class="wire"></div>`:""}<i style="width:${Math.round(TI.prog*100)}%;background:linear-gradient(90deg,${
+        TI.i>=4?waveSVG([2.2,1.5,1][TI.i-4],[2.4,3,3.6][TI.i-4]):""}<i style="width:${Math.round(TI.prog*100)}%;background:linear-gradient(90deg,${
         tc},${TI.next?TI.next.c:tc})"></i></div>
       <div class="lvltext" style="color:${tc}">${sc} оч. · ${TI.t.name}</div></div>
     <div style="font-size:11px;color:var(--dim);margin-top:6px">${
