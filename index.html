@@ -41,17 +41,17 @@
   .cheer .bar:nth-child(6){animation-delay:.25s}.cheer .bar:nth-child(7){animation-delay:.3s}
   .bars{position:relative}
   .wave{position:absolute;left:0;width:100%;top:50%;transform:translateY(-50%);
-    pointer-events:none;mix-blend-mode:screen;overflow:visible;height:26px}
-  .wave .halo{stroke:var(--mid);stroke-width:7;opacity:.5;filter:blur(4px)}
-  .wave .core{stroke:var(--edge);stroke-width:2.6;filter:blur(.5px)}
-  .wave .hot{stroke:#fff;stroke-width:1.1;opacity:.9}
+    pointer-events:none;mix-blend-mode:screen;overflow:hidden;height:30px}
+  .wave .halo{stroke:var(--mid);stroke-width:13;opacity:.45;filter:blur(5px)}
+  .wave .glow{stroke:var(--mid);stroke-width:7;opacity:.7;filter:blur(2px)}
+  .wave .core{stroke:var(--edge);stroke-width:3.4;filter:blur(.6px)}
+  .wave .hot{stroke:#fff;stroke-width:1.4;opacity:.92}
   @keyframes breathe{0%,100%{box-shadow:0 0 12px var(--glowc)}50%{box-shadow:0 0 22px var(--glowc),0 0 5px #fff9}}
   .fx1{--edge:#c9a0ff;--mid:#7b3fd0;--glowc:#a55ce0}
   .fx2{--edge:#ffd27a;--mid:#ff7a1f;--glowc:#ffae3a}
   .fx3{--edge:#ffb3cc;--mid:#ff2e6b;--glowc:#ff4a86}
   .fx1 .bar,.fx2 .bar,.fx3 .bar{animation:breathe 2.4s ease-in-out infinite}
   .fx2 .bar{animation-duration:1.8s}.fx3 .bar{animation-duration:1.2s}
-  .lvlbar .wave{height:16px}
   .lvlbar{position:relative;overflow:visible}
   .lvlbar .wire{height:3px}.lvlbar .wire2{height:8px;opacity:.4}
   .week{display:flex;gap:6px;margin-top:20px;align-items:flex-end}
@@ -165,7 +165,7 @@ const CATS=[
  {id:"wish",title:"Желательное",sub:"хотелось бы, но не обязан",daily:true},
  {id:"needed",title:"Нужно сделать",sub:"без даты",daily:false},
  {id:"maybe",title:"Можно сделать",sub:"если захочется",daily:false}];
-const KEY="routine_v1", VERSION="0.7.0";
+const KEY="routine_v1", VERSION="0.7.1";
 
 let S={items:[],log:{},past:{},total:0,snd:true,vib:true,vol:1};
 let menuFor=null,moveFor=null,renaming=null,adding=null,dueFor=null,openClosed={},
@@ -236,21 +236,25 @@ function best(exceptToday){
   return b;
 }
 
-const WAVE_P=50, WAVE_W=600;                    // период и длина полотна
-function wavePath(amp,y){                        // синус из кубических дуг, ровно по периодам
-  let d=`M0,${y}`;
-  for(let x=0;x<WAVE_W;x+=WAVE_P){
-    d+=` C${x+WAVE_P*.25},${y-amp} ${x+WAVE_P*.25},${y-amp} ${x+WAVE_P*.5},${y}`
-     + ` C${x+WAVE_P*.75},${y+amp} ${x+WAVE_P*.75},${y+amp} ${x+WAVE_P},${y}`;
+const WAVE_SHIFT=100, WAVE_W=800;      // сдвиг за цикл и длина полотна
+/* три синуса с периодами 100/50/25 — форма живая, но повторяется ровно через 100 */
+function wavePath(amp,y){
+  let d="";
+  for(let x=0;x<=WAVE_W;x+=4){   // шаг делит период сдвига
+    const v=y-(Math.sin(x*Math.PI/50)*amp
+              +Math.sin(x*Math.PI/25+1.1)*amp*.5
+              +Math.sin(x*Math.PI/12.5+2.4)*amp*.26);
+    d+=(x?" L":"M")+x+","+v.toFixed(2);
   }
   return d;
 }
 function waveSVG(speed,amp){
-  const y=20, d=wavePath(amp,y);
-  return `<svg class="wave" viewBox="0 ${y-14} 300 28" preserveAspectRatio="none" aria-hidden="true">
-    <g><animateTransform attributeName="transform" type="translate" from="0 0" to="-${WAVE_P} 0"
+  const y=22, d=wavePath(amp,y);
+  return `<svg class="wave" viewBox="0 0 300 44" preserveAspectRatio="none" aria-hidden="true">
+    <g><animateTransform attributeName="transform" type="translate" from="0 0" to="-${WAVE_SHIFT} 0"
         dur="${speed}s" repeatCount="indefinite"/>
       <path class="halo" fill="none" d="${d}"/>
+      <path class="glow" fill="none" d="${d}"/>
       <path class="core" fill="none" d="${d}"/>
       <path class="hot"  fill="none" d="${d}"/></g></svg>`;
 }
@@ -472,8 +476,7 @@ function render(){
     <div class="week">${days(7).map(x=>{const v=scoreOf(x);
       return `<div class="wk"><i style="height:${Math.min(30,4+v*2)}px;background:${
         v?tierOf(v).t.c:"var(--line)"};opacity:${x===t?1:.75}"></i><span>${lab(x)}</span></div>`}).join("")}</div>
-    <div class="lvl"><div class="lvlbar ${TI.i>=4?"fx"+(TI.i-3):""}">${
-        TI.i>=4?waveSVG([2.2,1.5,1][TI.i-4],[2.4,3,3.6][TI.i-4]):""}<i style="width:${Math.round(TI.prog*100)}%;background:linear-gradient(90deg,${
+    <div class="lvl"><div class="lvlbar ${TI.i>=4?"fx"+(TI.i-3):""}"><i style="width:${Math.round(TI.prog*100)}%;background:linear-gradient(90deg,${
         tc},${TI.next?TI.next.c:tc})"></i></div>
       <div class="lvltext" style="color:${tc}">${sc} оч. · ${TI.t.name}</div></div>
     <div style="font-size:11px;color:var(--dim);margin-top:6px">${
