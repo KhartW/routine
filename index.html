@@ -48,7 +48,8 @@
   .wave .halo{stroke:var(--mid);stroke-width:13;opacity:.45;filter:blur(5px)}
   .wave .glow{stroke:var(--mid);stroke-width:7;opacity:.7;filter:blur(2px)}
   .wave .core{stroke:var(--edge);stroke-width:3.4;filter:blur(.6px)}
-  .wave .hot{stroke:#fff;stroke-width:1.4;opacity:.92}
+  .wave .hot{stroke:#fff;stroke-width:1.4;opacity:.92;animation:pulsehot 1.6s ease-in-out infinite}
+  @keyframes pulsehot{0%,100%{opacity:.55;stroke-width:1.1}50%{opacity:1;stroke-width:1.7}}
   @keyframes breathe{0%,100%{box-shadow:0 0 12px var(--glowc)}50%{box-shadow:0 0 22px var(--glowc),0 0 5px #fff9}}
   .fx1{--edge:#c9a0ff;--mid:#7b3fd0;--glowc:#a55ce0}
   .fx2{--edge:#ffd27a;--mid:#ff7a1f;--glowc:#ffae3a}
@@ -164,7 +165,7 @@ const CATS=[
  {id:"wish",title:"Желательное",sub:"хотелось бы, но не обязан",daily:true},
  {id:"needed",title:"Нужно сделать",sub:"без даты",daily:false},
  {id:"maybe",title:"Можно сделать",sub:"если захочется",daily:false}];
-const KEY="routine_v1", VERSION="0.7.6";
+const KEY="routine_v1", VERSION="0.8.0";
 
 let S={items:[],log:{},past:{},total:0,snd:true,vib:true,vol:1};
 let menuFor=null,moveFor=null,renaming=null,adding=null,dueFor=null,openClosed={},
@@ -235,27 +236,38 @@ function best(exceptToday){
   return b;
 }
 
-const WAVE_SHIFT=50, WAVE_W=400;      // сдвиг за цикл и длина полотна
-/* три синуса с периодами 100/50/25 — форма живая, но повторяется ровно через 100 */
-function wavePath(amp,y){
-  let d="";
-  for(let x=0;x<=WAVE_W;x+=.5){  // шаг делит период сдвига
-    const v=y-(Math.sin(x*Math.PI/25)*amp*.5        // медленная — задаёт разную высоту гребней
-              +Math.sin(x*Math.PI/12.5+1.1)*amp*.85   // основные гребни
-              +Math.sin(x*Math.PI/6.25+2.4)*amp*.4
-              +Math.sin(x*Math.PI/3.125+.7)*amp*.18);
-    d+=(x?" L":"M")+x.toFixed(1)+","+v.toFixed(2);
+const WAVE_L=400, WAVE_W=800;          // длина цикла и всего полотна
+/* случайные гармоники, но только те, что укладываются в цикл целое число раз:
+   форма непредсказуемая, а через WAVE_L повторяется точно — стыка нет */
+function buildWave(amp,y){
+  const parts=[];
+  for(let k=7;k<=34;k++){
+    if(Math.random()<.42)continue;                    // часть частот выбрасываем
+    parts.push({k,a:(Math.random()*.9+.35)/Math.pow(k,.85),ph:Math.random()*Math.PI*2});
   }
+  const raw=[],step=1;
+  for(let x=0;x<=WAVE_W;x+=step){
+    let v=0;
+    for(const p of parts)v+=p.a*Math.sin(2*Math.PI*p.k*x/WAVE_L+p.ph);
+    raw.push(v);
+  }
+  const peak=Math.max(...raw.map(Math.abs))||1, k=amp/peak;
+  let d="";
+  for(let i=0;i<raw.length;i++)
+    d+=(i?" L":"M")+(i*step)+","+(y-raw[i]*k).toFixed(2);
   return d;
 }
+const WAVE_CACHE={};
+const waveFor=(amp,y)=>WAVE_CACHE[amp]||(WAVE_CACHE[amp]=buildWave(amp,y));
+
 function waveSVG(speed,amp,pct){
-  const y=22, d=wavePath(amp,y);
+  const y=22, d=waveFor(amp,y);
   // окно показывает часть полосы, а полотно всегда во всю её ширину —
   // поэтому длина волны на экране постоянна
   return `<div class="wavebox" style="width:${pct}%">
     <svg class="wave" style="width:${(10000/pct).toFixed(1)}%" viewBox="0 0 300 44"
       preserveAspectRatio="none" aria-hidden="true">
-    <g><animateTransform attributeName="transform" type="translate" from="0 0" to="-${WAVE_SHIFT} 0"
+    <g><animateTransform attributeName="transform" type="translate" from="0 0" to="-${WAVE_L} 0"
         dur="${speed}s" repeatCount="indefinite"/>
       <path class="halo" fill="none" d="${d}"/>
       <path class="glow" fill="none" d="${d}"/>
@@ -469,7 +481,7 @@ function render(){
       <div class="gap" style="color:${tc}">${
         routine.length===0?"добавь первый пункт":rk?RANKS[rk].t:`ещё ${left} до полного дня`}</div></div>
     <div class="bars ${cheerRank?"cheer":""} ${TI.i>=4?"fx"+(TI.i-3):""}">
-      ${TI.i>=4?waveSVG([1.05,.72,.5][TI.i-4],[4.4,5.1,5.9][TI.i-4],
+      ${TI.i>=4?waveSVG([8.4,5.8,4][TI.i-4],[4.4,5.1,5.9][TI.i-4],
           routine.length?Math.max(6,Math.round(doneR/routine.length*100)):100):""}
       ${[...routine.filter(r=>!d.includes(r.id)),...routine.filter(r=>d.includes(r.id))]
         .map(r=>`<div class="bar ${d.includes(r.id)?"on":""}" style="${
