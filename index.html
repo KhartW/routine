@@ -116,12 +116,18 @@
   .flash{position:fixed;inset:0;pointer-events:none;z-index:80;animation:flashin 1.1s ease-out forwards}
   @keyframes flashin{0%{opacity:0}14%{opacity:.6}100%{opacity:0}}
   .sparks{position:fixed;inset:0;pointer-events:none;z-index:81;overflow:hidden}
+  .ripple{position:fixed;left:50%;top:26vh;width:40px;height:40px;margin:-20px 0 0 -20px;
+    border-radius:50%;border:2px solid;pointer-events:none;z-index:80;
+    animation:rip 1.5s cubic-bezier(.15,.7,.3,1) forwards}
+  .ripple.r2{animation-delay:.28s}
+  @keyframes rip{0%{transform:scale(.3);opacity:.9}100%{transform:scale(16);opacity:0}}
   .sp{position:absolute;left:50%;top:26vh;width:7px;height:7px;border-radius:50%;
     animation:fly 1.05s cubic-bezier(.2,.7,.4,1) forwards}
   @keyframes fly{0%{transform:translate(0,0) scale(1);opacity:1}
     100%{transform:translate(var(--dx),var(--dy)) scale(.15);opacity:0}}
   @keyframes swell{0%,100%{transform:scale(1)}30%{transform:scale(1.16)}}
   .count.swell{animation:swell .8s ease}
+  .count.swell.big{animation:swell 1.2s ease}
   .bars.merge{gap:0}
   .bars.merge .bar{border-radius:0}
   .bars.merge .bar:first-child{border-radius:3px 0 0 3px}
@@ -139,7 +145,7 @@ const KEY="routine_v1";
 
 let S={items:[],log:{},past:{},total:0,snd:true,vib:true,vol:1};
 let menuFor=null,moveFor=null,renaming=null,adding=null,dueFor=null,openClosed={},
-    pulse=null,cheerRank=0,burst=false,settings=false;
+    pulse=null,cheerRank=0,burst=null,settings=false;
 
 const ACC={routine:"#e0457b",wish:"#e0a458",needed:"#46c48c",maybe:"#8f9ad6"};
 const WEIGHT={routine:2,wish:2.5,needed:5,maybe:1.5};   // вес = сколько это стоит
@@ -181,6 +187,10 @@ function sweep(){
   });
   if(gone)store.save();
   return gone;
+}
+function wishFull(date){
+  const w=byCat("wish"); if(!w.length)return false;
+  const ids=S.log[date]||[]; return w.every(x=>ids.includes(x.id));
 }
 function routineFull(date){
   const r=byCat("routine"); if(!r.length)return false;
@@ -273,16 +283,24 @@ function toggle(id){
   const it=S.items.find(x=>x.id===id); if(!it||moveFor)return;
   const cat=CATS.find(c=>c.id===it.cat),t=today(),before=rank();
   const wasRecord=scoreOf(t)>best(true).v;
+  const rB=routineFull(t),wB=wishFull(t);
   if(cat.daily){
     const d=doneToday(),has=d.includes(id);
     S.log[t]=has?d.filter(x=>x!==id):[...d,id];
-    if(!has){reward(id,before,wasRecord);store.save();return render()}
+    if(!has){
+      const rA=routineFull(t),wA=wishFull(t);
+      let kind=null;
+      if(rA&&wA&&!(rB&&wB))kind="both";
+      else if(rA&&!rB)kind="routine";
+      else if(wA&&!wB)kind="wish";
+      reward(id,kind,wasRecord); store.save(); return render();
+    }
   }else{
     if(!it.done){
       pulse=id;S.total++;render();
       setTimeout(()=>{it.done=true;it.doneAt=t;pulse=null;
-        sound(before,rank(),wasRecord);store.save();render();
-        setTimeout(()=>{cheerRank=0;burst=false;render()},1100)},480);
+        sound(null,wasRecord);store.save();render();
+        setTimeout(()=>{cheerRank=0;burst=null;render()},1100)},480);
       return;
     }
     it.done=false;delete it.doneAt;
@@ -290,28 +308,35 @@ function toggle(id){
   store.save();render();
 }
 
-function reward(id,before,wasRecord){
+function reward(id,kind,wasRecord){
   pulse=id;S.total++;
-  sound(before,rank(),wasRecord);
-  setTimeout(()=>{pulse=null;cheerRank=0;render();
-    setTimeout(()=>{burst=false;render()},burst?500:0)},700);
+  sound(kind,wasRecord);
+  const hold=kind==="both"?1800:kind?1300:700;
+  setTimeout(()=>{pulse=null;cheerRank=0;burst=null;render()},hold);
 }
 
 const SCALE=[523.25,587.33,659.25,783.99,880,1046.5,1174.66,1318.51,1567.98,1760,2093];
 
-function sound(before,after,wasRecord){
+function sound(kind,wasRecord){
   const t=today();
   const step=(S.log[t]||[]).length + S.items.filter(i=>i.done&&i.doneAt===t).length;
 
-  // рутина закрылась целиком — единственное отдельное событие
-  if(before<1&&after>=1){
-    cheerRank=after; burst=true;
-    tone([392,523.25,659.25,783.99,1046.5],.5,.34*S.vol,.075);
-    buzz([20,40,20,40,20,90]);
+  if(kind){
+    burst=kind; cheerRank=kind==="both"?4:kind==="wish"?2:1;
+    if(kind==="routine"){
+      tone([392,523.25,659.25,783.99,1046.5],.5,.34*S.vol,.075);
+      buzz([20,40,20,40,20,90]);
+    }else if(kind==="wish"){
+      tone([440,587.33,739.99,880],.46,.32*S.vol,.08);
+      buzz([25,45,25,80]);
+    }else{
+      tone([261.63,392,523.25,659.25,783.99,1046.5,1318.5],.62,.38*S.vol,.085);
+      setTimeout(()=>tone([1046.5,1318.5,1568,2093],.7,.2*S.vol,.05),620);
+      buzz([30,40,30,40,30,40,30,160]);
+    }
     return;
   }
 
-  // обычная отметка: восходящее трезвучие, выше и плотнее с каждым делом за день
   const i=Math.min(step,SCALE.length-1), n=SCALE[i];
   const chord=[n,n*1.25,n*1.5];
   if(step>=5)chord.push(n*2);
@@ -319,7 +344,6 @@ function sound(before,after,wasRecord){
   tone(chord,.36+Math.min(step,8)*.012,vol,.055);
   buzz(30+Math.min(step,8)*3);
 
-  // рекорд не перебивает звук дела, а добавляет отзвук сверху
   const rec=best(true).v;
   if(!wasRecord&&rec>0&&scoreOf(t)>rec){
     cheerRank=4;
@@ -344,13 +368,24 @@ function render(){
   const sc=scoreOf(t),bst=best(true),isRec=sc>bst.v&&bst.v>0;
   const rk=rank();
   const parts=dayParts(),col=dayColor();
-  const fx=burst?`<div class="flash" style="background:radial-gradient(circle at 50% 26%, ${
-      col||"var(--c-routine)"}, transparent 62%)"></div>
-    <div class="sparks">${Array.from({length:16},(_,i)=>{
-      const a=(i/16)*Math.PI*2, r=90+Math.random()*130;
-      return `<i class="sp" style="--dx:${Math.round(Math.cos(a)*r)}px;--dy:${
-        Math.round(Math.sin(a)*r-40)}px;background:${i%3?col||"var(--c-routine)":"var(--gold)"};animation-delay:${
-        (i%4)*40}ms"></i>`}).join("")}</div>`:"";
+  const FXC={routine:["var(--c-routine)","#ff7aa8"],
+             wish:["var(--c-wish)","#ffd79a"],
+             both:["var(--c-routine)","var(--c-wish)"]};
+  let fx="";
+  if(burst){
+    const [c1,c2]=FXC[burst], n=burst==="both"?30:burst==="wish"?14:18;
+    const dur=burst==="both"?1.7:1.15;
+    fx=`<div class="flash" style="animation-duration:${dur}s;background:
+        radial-gradient(circle at 50% 26%, ${c1}, transparent 60%)
+        ${burst==="both"?`,radial-gradient(circle at 50% 26%, ${c2}, transparent 78%)`:""}"></div>
+      ${burst==="both"?`<div class="ripple" style="border-color:${c2}"></div>
+                        <div class="ripple r2" style="border-color:${c1}"></div>`:""}
+      <div class="sparks">${Array.from({length:n},(_,i)=>{
+        const a=(i/n)*Math.PI*2, r=(burst==="both"?120:90)+Math.random()*(burst==="both"?190:130);
+        return `<i class="sp" style="--dx:${Math.round(Math.cos(a)*r)}px;--dy:${
+          Math.round(Math.sin(a)*r-40)}px;background:${i%2?c1:c2};animation-duration:${
+          dur*.9}s;animation-delay:${(i%5)*45}ms"></i>`}).join("")}</div>`;
+  }
 
   let h=fx+`<div style="display:flex;align-items:center;justify-content:space-between">
     <h1>${lab(t)}</h1><button class="gear" data-gear="1">${settings?"✕":"⚙"}</button></div>`;
@@ -363,7 +398,7 @@ function render(){
       <div class="note" id="vibnote">Сегодня ${scoreOf(t)} оч. · рекорд ${best(false).v} оч.</div></div>`;
 
   h+=`<div style="display:flex;align-items:flex-end;gap:10px;margin-top:14px">
-      <div class="count ${burst?"swell":""}" style="color:${col||"var(--text)"}">${d.length}</div>
+      <div class="count ${burst?"swell":""} ${burst==="both"?"big":""}" style="color:${col||"var(--text)"}">${d.length}</div>
       <div class="gap" style="color:${col||"var(--dim)"}">${
         routine.length===0?"добавь первый пункт":rk?RANKS[rk].t:`ещё ${left} до полного дня`}</div></div>
     <div class="bars ${cheerRank?"cheer":""} ${rk?"merge":""}">
@@ -491,6 +526,22 @@ document.addEventListener("keydown",e=>{if(e.key!=="Enter")return;
   else if(document.getElementById("ad"))document.querySelector("[data-add]")?.click()});
 
 let drag=null;
+function syncFromDOM(){                     // собираем порядок и категории из DOM
+  const seen=new Set(), next=[];
+  document.querySelectorAll(".list").forEach(list=>{
+    const cat=list.dataset.cat, daily=CATS.find(c=>c.id===cat).daily;
+    list.querySelectorAll(".row").forEach(r=>{
+      const it=S.items.find(x=>x.id===r.dataset.id); if(!it||seen.has(it.id))return;
+      if(it.cat!==cat){                       // сменил полку
+        it.cat=cat; it.done=false; delete it.doneAt;
+        if(daily){delete it.due;delete it.warn}
+      }
+      seen.add(it.id); next.push(it);
+    });
+  });
+  for(const it of S.items)if(!seen.has(it.id))next.push(it);   // скрытые не теряем
+  S.items=next;
+}
 function startDrag(e){
   if(!moveFor||drag)return;
   const row=e.target.closest(".row"); if(!row||row.dataset.id!==moveFor)return;
@@ -503,6 +554,21 @@ document.addEventListener("pointermove",e=>{
   if(!drag)return; e.preventDefault();
   drag.row.style.transform=`translateY(${e.clientY-drag.startY}px)`;
   const r=drag.row.getBoundingClientRect(),mid=r.top+r.height/2;
+
+  // палец над другим списком — переносим строку туда
+  drag.row.style.pointerEvents="none";
+  const under=document.elementFromPoint(e.clientX,Math.max(2,Math.min(innerHeight-2,e.clientY)));
+  drag.row.style.pointerEvents="";
+  const list=under&&under.closest(".list");
+  if(list&&list!==drag.list){
+    const rows=[...list.querySelectorAll(".row")];
+    const after=rows.find(x=>{const b=x.getBoundingClientRect();return mid<b.top+b.height/2});
+    after?list.insertBefore(drag.row,after):list.appendChild(drag.row);
+    drag.list=list; drag.startY=e.clientY;
+    drag.row.style.transform="translateY(0px)";
+    return;
+  }
+
   const prev=drag.row.previousElementSibling,next=drag.row.nextElementSibling;
   if(prev&&prev.classList.contains("row")){const p=prev.getBoundingClientRect();
     if(mid<p.top+p.height/2){drag.list.insertBefore(drag.row,prev);drag.startY-=p.height+7;
@@ -514,11 +580,8 @@ document.addEventListener("pointermove",e=>{
 function endDrag(){
   if(!drag)return;
   drag.row.style.transform="";drag.row.classList.remove("lifting");
-  const cat=drag.list.dataset.cat,order=[...drag.list.querySelectorAll(".row")].map(r=>r.dataset.id);
-  const map=Object.fromEntries(byCat(cat).map(i=>[i.id,i]));
-  const q=[...order.map(id=>map[id]).filter(Boolean),...byCat(cat).filter(i=>!order.includes(i.id))];
-  let k=0;S.items=S.items.map(i=>i.cat===cat?q[k++]:i);
-  drag=null;store.save();
+  syncFromDOM();
+  drag=null;store.save();render();
 }
 document.addEventListener("pointerup",endDrag);
 document.addEventListener("pointercancel",endDrag);
