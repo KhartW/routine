@@ -42,22 +42,24 @@
   .bars{position:relative}
   .wire,.wire2{position:absolute;left:0;right:0;top:50%;pointer-events:none;
     transform:translateY(-50%);mix-blend-mode:screen;
-    background-size:170% 100%;background-repeat:repeat-x;
-    animation:run 1.5s linear infinite}
-  .wire{height:4px;filter:url(#wireturb) blur(.5px);
-    background:linear-gradient(90deg,transparent 0 4%,#fff 7%,var(--edge) 11%,transparent 19% 41%,
-      #fff 46%,var(--edge) 50%,transparent 58% 74%,#fff 78%,var(--edge) 82%,transparent 89% 100%)}
-  .wire2{height:12px;filter:url(#wireturb) blur(4px);opacity:.55;animation-duration:2.3s;
-    background:linear-gradient(90deg,transparent 0 8%,var(--mid) 16%,transparent 30% 52%,
-      var(--mid) 62%,transparent 76% 100%)}
-  @keyframes run{to{background-position:-170% 0}}
-  .fx1{--edge:#c9a0ff;--mid:#8b4fd8;--glowc:#a55ce0}
-  .fx2{--edge:#ffd27a;--mid:#ff8a2b;--glowc:#ffae3a}
-  .fx3{--edge:#ffb3cc;--mid:#ff2e6b;--glowc:#ff4a86}
-  .fx2 .wire{animation-duration:1.1s}.fx2 .wire2{animation-duration:1.8s}
-  .fx3 .wire{animation-duration:.75s}.fx3 .wire2{animation-duration:1.3s}
-  .fx2 .bar,.fx3 .bar{box-shadow:0 0 14px var(--glowc),0 0 3px #fff9}
-  .fx1 .bar{box-shadow:0 0 12px var(--glowc)}
+    background-size:220% 100%;background-repeat:repeat-x}
+  /* сплошной энергетический канал: свет течёт по всей длине без разрывов */
+  .wire{height:5px;filter:url(#wireturb) blur(.6px);
+    background:linear-gradient(90deg,var(--mid),#fff 14%,var(--edge) 30%,#fff 48%,
+      var(--mid) 62%,#fff 80%,var(--edge) 92%,var(--mid));
+    animation:flow 2.4s linear infinite}
+  .wire2{height:15px;filter:url(#wireturb) blur(5px);opacity:.5;
+    background:linear-gradient(90deg,var(--mid),var(--edge) 25%,var(--mid) 50%,var(--edge) 75%,var(--mid));
+    animation:flow 3.6s linear infinite reverse}
+  @keyframes flow{to{background-position:-220% 0}}
+  @keyframes breathe{0%,100%{box-shadow:0 0 12px var(--glowc)}50%{box-shadow:0 0 22px var(--glowc),0 0 5px #fff9}}
+  .fx1{--edge:#c9a0ff;--mid:#7b3fd0;--glowc:#a55ce0}
+  .fx2{--edge:#ffd27a;--mid:#ff7a1f;--glowc:#ffae3a}
+  .fx3{--edge:#ffb3cc;--mid:#e0104f;--glowc:#ff4a86}
+  .fx2 .wire{animation-duration:1.7s}.fx2 .wire2{animation-duration:2.7s}
+  .fx3 .wire{animation-duration:1.15s}.fx3 .wire2{animation-duration:1.9s}
+  .fx1 .bar,.fx2 .bar,.fx3 .bar{animation:breathe 2.6s ease-in-out infinite}
+  .fx2 .bar{animation-duration:2s}.fx3 .bar{animation-duration:1.4s}
   .lvlbar{position:relative;overflow:visible}
   .lvlbar .wire{height:3px}.lvlbar .wire2{height:8px;opacity:.4}
   .week{display:flex;gap:6px;margin-top:20px;align-items:flex-end}
@@ -165,12 +167,11 @@
 </style></head><body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="wireturb"
    x="-10%" y="-60%" width="120%" height="220%" color-interpolation-filters="sRGB">
-  <feTurbulence type="fractalNoise" baseFrequency="0.09 0.012" numOctaves="2" seed="3" result="n">
-    <animate attributeName="baseFrequency" dur="3.2s" repeatCount="indefinite"
-      values="0.09 0.012;0.14 0.02;0.07 0.009;0.09 0.012"/>
-    <animate attributeName="seed" dur="1.6s" repeatCount="indefinite" values="3;8;2;6;3"/>
+  <feTurbulence type="fractalNoise" baseFrequency="0.022 0.006" numOctaves="2" seed="4" result="n">
+    <animate attributeName="baseFrequency" dur="7s" repeatCount="indefinite"
+      values="0.022 0.006;0.031 0.009;0.017 0.005;0.022 0.006"/>
   </feTurbulence>
-  <feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G"/>
+  <feDisplacementMap in="SourceGraphic" in2="n" scale="8" xChannelSelector="R" yChannelSelector="G"/>
 </filter></svg>
 <div id="app"></div>
 <script>
@@ -179,7 +180,7 @@ const CATS=[
  {id:"wish",title:"Желательное",sub:"хотелось бы, но не обязан",daily:true},
  {id:"needed",title:"Нужно сделать",sub:"без даты",daily:false},
  {id:"maybe",title:"Можно сделать",sub:"если захочется",daily:false}];
-const KEY="routine_v1", VERSION="0.6.2";
+const KEY="routine_v1", VERSION="0.6.3";
 
 let S={items:[],log:{},past:{},total:0,snd:true,vib:true,vol:1};
 let menuFor=null,moveFor=null,renaming=null,adding=null,dueFor=null,openClosed={},
