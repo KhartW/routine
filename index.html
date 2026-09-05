@@ -149,7 +149,7 @@ const CATS=[
  {id:"wish",title:"Желательное",sub:"хотелось бы, но не обязан",daily:true},
  {id:"needed",title:"Нужно сделать",sub:"без даты",daily:false},
  {id:"maybe",title:"Можно сделать",sub:"если захочется",daily:false}];
-const KEY="routine_v1", VERSION="0.5.0";
+const KEY="routine_v1", VERSION="0.5.1";
 
 let S={items:[],log:{},past:{},total:0,snd:true,vib:true,vol:1};
 let menuFor=null,moveFor=null,renaming=null,adding=null,dueFor=null,openClosed={},
@@ -318,11 +318,8 @@ function toggle(id){
     }
   }else{
     if(!it.done){
-      pulse=id;S.total++;render();
-      setTimeout(()=>{it.done=true;it.doneAt=t;pulse=null;
-        sound(null,wasRecord);store.save();render();
-        setTimeout(()=>{cheerRank=0;burst=null;render()},1100)},480);
-      return;
+      it.done=true; it.doneAt=t;
+      reward(id,null,wasRecord); store.save(); return render();
     }
     it.done=false;delete it.doneAt;
   }
@@ -457,7 +454,7 @@ function render(){
 
   for(const cat of CATS){
     const list=byCat(cat.id);
-    const vis=cat.daily?list:[...list.filter(i=>!i.done),...list.filter(i=>i.done&&i.doneAt===t)];
+    const vis=cat.daily?list:list.filter(i=>!i.done||i.doneAt===t);
     const bur=[];
     h+=`<section><h2>${cat.title}</h2><div class="sub">${cat.sub}</div><div class="list" data-cat="${cat.id}">`;
     if(!vis.length)h+=`<div class="empty">Пусто. Добавь ниже.</div>`;
