@@ -41,25 +41,26 @@
   .cheer .bar:nth-child(6){animation-delay:.25s}.cheer .bar:nth-child(7){animation-delay:.3s}
   .bars{position:relative}
   .wire,.wire2{position:absolute;left:0;right:0;top:50%;pointer-events:none;
-    transform:translateY(-50%);mix-blend-mode:screen;
-    background-size:220% 100%;background-repeat:repeat-x}
-  /* сплошной энергетический канал: свет течёт по всей длине без разрывов */
-  .wire{height:5px;filter:url(#wireturb) blur(.6px);
-    background:linear-gradient(90deg,var(--mid),#fff 14%,var(--edge) 30%,#fff 48%,
-      var(--mid) 62%,#fff 80%,var(--edge) 92%,var(--mid));
-    animation:flow 2.4s linear infinite}
-  .wire2{height:15px;filter:url(#wireturb) blur(5px);opacity:.5;
-    background:linear-gradient(90deg,var(--mid),var(--edge) 25%,var(--mid) 50%,var(--edge) 75%,var(--mid));
-    animation:flow 3.6s linear infinite reverse}
-  @keyframes flow{to{background-position:-220% 0}}
+    transform:translateY(-50%);mix-blend-mode:screen;background-repeat:repeat-x;
+    background-size:200px 100%}
+  /* период ровно 200px и сдвиг ровно на 200px — стык кадра невидим */
+  .wire{height:6px;filter:url(#wireturb) blur(.6px);
+    background:linear-gradient(90deg,var(--mid) 0,#fff 12%,var(--edge) 26%,#fff 44%,
+      var(--mid) 58%,#fff 76%,var(--edge) 88%,var(--mid) 100%);
+    animation:flow 1.5s linear infinite}
+  .wire2{height:20px;filter:url(#wireturb) blur(6px);opacity:.5;
+    background:linear-gradient(90deg,var(--mid) 0,var(--edge) 25%,var(--mid) 50%,
+      var(--edge) 75%,var(--mid) 100%);
+    animation:flow 2.3s linear infinite}
+  @keyframes flow{from{background-position:0 0}to{background-position:200px 0}}
   @keyframes breathe{0%,100%{box-shadow:0 0 12px var(--glowc)}50%{box-shadow:0 0 22px var(--glowc),0 0 5px #fff9}}
   .fx1{--edge:#c9a0ff;--mid:#7b3fd0;--glowc:#a55ce0}
   .fx2{--edge:#ffd27a;--mid:#ff7a1f;--glowc:#ffae3a}
   .fx3{--edge:#ffb3cc;--mid:#e0104f;--glowc:#ff4a86}
-  .fx2 .wire{animation-duration:1.7s}.fx2 .wire2{animation-duration:2.7s}
-  .fx3 .wire{animation-duration:1.15s}.fx3 .wire2{animation-duration:1.9s}
-  .fx1 .bar,.fx2 .bar,.fx3 .bar{animation:breathe 2.6s ease-in-out infinite}
-  .fx2 .bar{animation-duration:2s}.fx3 .bar{animation-duration:1.4s}
+  .fx2 .wire{animation-duration:1.05s}.fx2 .wire2{animation-duration:1.7s}
+  .fx3 .wire{animation-duration:.7s}.fx3 .wire2{animation-duration:1.15s}
+  .fx1 .bar,.fx2 .bar,.fx3 .bar{animation:breathe 2.4s ease-in-out infinite}
+  .fx2 .bar{animation-duration:1.8s}.fx3 .bar{animation-duration:1.2s}
   .lvlbar{position:relative;overflow:visible}
   .lvlbar .wire{height:3px}.lvlbar .wire2{height:8px;opacity:.4}
   .week{display:flex;gap:6px;margin-top:20px;align-items:flex-end}
@@ -166,12 +167,12 @@
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style></head><body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="wireturb"
-   x="-10%" y="-60%" width="120%" height="220%" color-interpolation-filters="sRGB">
-  <feTurbulence type="fractalNoise" baseFrequency="0.022 0.006" numOctaves="2" seed="4" result="n">
+   x="-15%" y="-260%" width="130%" height="620%" color-interpolation-filters="sRGB">
+  <feTurbulence type="fractalNoise" baseFrequency="0.019 0.005" numOctaves="2" seed="4" result="n">
     <animate attributeName="baseFrequency" dur="7s" repeatCount="indefinite"
-      values="0.022 0.006;0.031 0.009;0.017 0.005;0.022 0.006"/>
+      values="0.019 0.005;0.027 0.008;0.014 0.004;0.019 0.005"/>
   </feTurbulence>
-  <feDisplacementMap in="SourceGraphic" in2="n" scale="8" xChannelSelector="R" yChannelSelector="G"/>
+  <feDisplacementMap in="SourceGraphic" in2="n" scale="15" xChannelSelector="R" yChannelSelector="G"/>
 </filter></svg>
 <div id="app"></div>
 <script>
@@ -180,7 +181,7 @@ const CATS=[
  {id:"wish",title:"Желательное",sub:"хотелось бы, но не обязан",daily:true},
  {id:"needed",title:"Нужно сделать",sub:"без даты",daily:false},
  {id:"maybe",title:"Можно сделать",sub:"если захочется",daily:false}];
-const KEY="routine_v1", VERSION="0.6.3";
+const KEY="routine_v1", VERSION="0.6.4";
 
 let S={items:[],log:{},past:{},total:0,snd:true,vib:true,vol:1};
 let menuFor=null,moveFor=null,renaming=null,adding=null,dueFor=null,openClosed={},
