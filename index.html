@@ -73,8 +73,17 @@
   .row.c-routine{--acc:var(--c-routine)} .row.c-wish{--acc:var(--c-wish)}
   .row.c-needed{--acc:var(--c-needed)}  .row.c-maybe{--acc:var(--c-maybe)}
   .row.done{border-color:transparent}
-  .row.soon{border-color:#e0a45855}
-  .row.late{border-color:#c97b7b66}
+  .row.far{border-color:#e0a45840}
+  .row.soon{border-color:#e0a45888;box-shadow:inset 3px 0 0 var(--amber)}
+  .row.tom{border-color:#ff8a4d88;box-shadow:inset 3px 0 0 #ff8a4d,0 0 14px #ff8a4d22}
+  .row.today{border-color:#ff5c4d;box-shadow:inset 3px 0 0 #ff5c4d,0 0 20px #ff5c4d40;
+    animation:urgent 2.4s ease-in-out infinite}
+  .row.late{border-color:#ff3b3b;box-shadow:inset 3px 0 0 #ff3b3b,0 0 22px #ff3b3b4d;
+    animation:urgent 1.8s ease-in-out infinite}
+  @keyframes urgent{0%,100%{box-shadow:inset 3px 0 0 currentColor,0 0 14px #ff3b3b33}
+    50%{box-shadow:inset 3px 0 0 currentColor,0 0 26px #ff3b3b66}}
+  .row.today{color:#ff5c4d}.row.late{color:#ff3b3b}
+  .row.today .txt,.row.late .txt{color:var(--text)}
   body.dragmode{touch-action:none;overscroll-behavior:none}
   body.dragmode .row{touch-action:none}
   .row.moving{border-color:var(--amber);background:var(--surf2);box-shadow:0 8px 26px #0009;touch-action:none;z-index:40}
@@ -95,7 +104,9 @@
   .txt{flex:1;font-size:16px;cursor:pointer;word-break:break-word}
   .txt.done{color:var(--dim);text-decoration:line-through}
   .when{font-size:11px;color:var(--dim);white-space:nowrap;flex:0 0 auto}
-  .when.soon{color:var(--amber)}.when.late{color:var(--red)}
+  .when.far{color:var(--dim)}.when.soon{color:var(--amber)}
+  .when.tom{color:#ff8a4d}.when.today{color:#ff5c4d;font-weight:600}
+  .when.late{color:#ff3b3b;font-weight:600}
   .more{background:none;border:none;color:var(--dim);font-size:19px;line-height:1;padding:6px 2px;cursor:pointer}
   .grip{color:var(--amber);font-size:19px;padding:6px 4px;touch-action:none;cursor:grab;user-select:none}
   .menu{position:absolute;top:calc(100% + 6px);right:6px;z-index:60;background:var(--surf2);
@@ -165,9 +176,9 @@ const CATS=[
  {id:"wish",title:"Желательное",sub:"хотелось бы, но не обязан",daily:true},
  {id:"needed",title:"Нужно сделать",sub:"без даты",daily:false},
  {id:"maybe",title:"Можно сделать",sub:"если захочется",daily:false}];
-const KEY="routine_v1", VERSION="0.8.0";
+const KEY="routine_v1", VERSION="0.9.1";
 
-let S={items:[],log:{},past:{},total:0,snd:true,vib:true,vol:1};
+let S={items:[],log:{},past:{},total:0,snd:true,vib:true,vol:1,lateDay:false};
 let menuFor=null,moveFor=null,renaming=null,adding=null,dueFor=null,openClosed={},
     pulse=null,cheerRank=0,burst=null,record=false,settings=false;
 
@@ -277,9 +288,15 @@ function waveSVG(speed,amp,pct){
 
 const uid=()=>Math.random().toString(36).slice(2,9);
 const iso=d=>new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);
-const today=()=>iso(new Date());
+const DAY_START=5;                       // час, с которого начинается новый день
+function baseNow(){                      // «сейчас» с учётом сдвига границы суток
+  const d=new Date();
+  if(S.lateDay&&d.getHours()<DAY_START)d.setDate(d.getDate()-1);
+  return d;
+}
+const today=()=>iso(baseNow());
 const lab=s=>["вс","пн","вт","ср","чт","пт","сб"][new Date(s+"T12:00").getDay()];
-const days=n=>{const o=[];for(let i=n-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);o.push(iso(d))}return o};
+const days=n=>{const o=[];for(let i=n-1;i>=0;i--){const d=baseNow();d.setDate(d.getDate()-i);o.push(iso(d))}return o};
 const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const daysTo=due=>Math.round((new Date(due+"T12:00")-new Date(today()+"T12:00"))/864e5);
 
@@ -434,7 +451,8 @@ function dueMeta(it){
   const n=daysTo(it.due);
   const warn=it.warn===undefined?3:it.warn;
   const txt=n<0?`просрочено на ${-n} дн.`:n===0?"сегодня":n===1?"завтра":`через ${n} дн.`;
-  return {n,txt,show:n<=warn,cls:n<0?"late":n<=1?"soon":""};
+  const cls=n<0?"late":n===0?"today":n===1?"tom":n<=3?"soon":"far";
+  return {n,txt,show:n<=warn,cls};
 }
 
 function render(){
@@ -471,6 +489,8 @@ function render(){
       <label>Звук отметки<button class="sw ${S.snd?"on":""}" data-t="snd"><i></i></button></label>
       <label>Громче<button class="sw ${S.vol>1?"on":""}" data-t="vol"><i></i></button></label>
       <label>Вибрация<button class="sw ${S.vib?"on":""}" data-t="vib"><i></i></button></label>
+      <label>День заканчивается в 5 утра<button class="sw ${S.lateDay?"on":""}" data-t="lateDay"><i></i></button></label>
+      <div class="note">Ночь до ${DAY_START}:00 засчитывается в предыдущий день. Отметки, уже сделанные этой ночью, при переключении уедут в соседний день.</div>
       <div class="acts" style="display:flex;gap:8px;margin-top:6px">
         <button class="ghost" data-vibtest="1">Проверить вибрацию</button></div>
       <div class="note" id="vibnote">Сегодня ${scoreOf(t)} оч. · рекорд ${best(false).v} оч.</div>
@@ -578,13 +598,14 @@ document.addEventListener("click",e=>{
   if(a("vibtest")){
     const n=document.getElementById("vibnote");
     if(!navigator.vibrate){n.textContent="Браузер не поддерживает вибрацию.";return}
-    const ok=navigator.vibrate([60,60,120]);
-    n.textContent=ok?"Импульс отправлен. Не почувствовал — включи вибрацию при касании в настройках телефона и проверь, что он не в беззвучном режиме."
-                   :"Система отклонила вибрацию — она выключена на уровне телефона.";
+    const ok=navigator.vibrate(500);
+    n.textContent=ok?"Пошли полсекунды непрерывной вибрации. Если тихо — Настройки телефона → Звуки и вибрация → Интенсивность вибрации → «Обратная связь при касании». При нуле веб-вибрация молчит."
+                   :"Система отклонила вызов — вибрация выключена на уровне телефона.";
     return}
   const sw=a("t"); if(sw){
     if(sw==="vol")S.vol=S.vol>1?1:1.8; else S[sw]=!S[sw];
-    if(sw!=="vib")tone([659.25,824,988.9],.36,.3*S.vol,.055); else if(S.vib)buzz(35);
+    if(sw==="snd"||sw==="vol")tone([659.25,824,988.9],.36,.3*S.vol,.055);
+    else if(sw==="vib"&&S.vib)buzz(35);
     store.save();return render()}
   const tg=a("toggle"); if(tg&&!moveFor)return toggle(tg);
   const m=a("menu"); if(m){menuFor=menuFor===m?null:m;return render()}
