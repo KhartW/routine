@@ -26,7 +26,7 @@
   .count{font:300 68px/.8 Georgia,serif}
   .gap{font-size:13px;padding-bottom:6px;color:var(--dim);transition:color .4s}
   .bars{display:flex;gap:4px;margin-top:16px}
-  .bar{height:6px;flex:1;min-width:3px;border-radius:3px;background:var(--line);
+  .bar{height:6px;flex:1;min-width:3px;border-radius:999px;background:var(--line);
     transition:background .45s,box-shadow .45s,transform .25s}
   .bar.on{background:var(--amber);box-shadow:0 0 12px #e0a45866}
   .mixbar{display:flex;gap:2px;margin-top:8px;height:9px}
@@ -40,11 +40,11 @@
   .cheer .bar:nth-child(4){animation-delay:.15s}.cheer .bar:nth-child(5){animation-delay:.2s}
   .cheer .bar:nth-child(6){animation-delay:.25s}.cheer .bar:nth-child(7){animation-delay:.3s}
   .bars{position:relative}
-  .wave{position:absolute;left:0;top:50%;transform:translateY(-50%);
+  .wave{position:absolute;right:0;top:50%;transform:translateY(-50%);
     pointer-events:none;mix-blend-mode:screen;overflow:hidden;height:30px;
-    border-radius:4px;
-    -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 3px,#000 calc(100% - 14px),transparent 100%);
-    mask-image:linear-gradient(90deg,transparent 0,#000 3px,#000 calc(100% - 14px),transparent 100%)}
+    border-radius:999px;
+    -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 3px),transparent 100%);
+    mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 3px),transparent 100%)}
   .wave .halo{stroke:var(--mid);stroke-width:13;opacity:.45;filter:blur(5px)}
   .wave .glow{stroke:var(--mid);stroke-width:7;opacity:.7;filter:blur(2px)}
   .wave .core{stroke:var(--edge);stroke-width:3.4;filter:blur(.6px)}
@@ -154,10 +154,6 @@
   @keyframes swell{0%,100%{transform:scale(1)}30%{transform:scale(1.16)}}
   .count.swell{animation:swell .8s ease}
   .count.swell.big{animation:swell 1.2s ease}
-  .bars.merge{gap:0}
-  .bars.merge .bar{border-radius:0}
-  .bars.merge .bar:first-child{border-radius:3px 0 0 3px}
-  .bars.merge .bar:last-child{border-radius:0 3px 3px 0}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style></head><body>
 
@@ -168,7 +164,7 @@ const CATS=[
  {id:"wish",title:"Желательное",sub:"хотелось бы, но не обязан",daily:true},
  {id:"needed",title:"Нужно сделать",sub:"без даты",daily:false},
  {id:"maybe",title:"Можно сделать",sub:"если захочется",daily:false}];
-const KEY="routine_v1", VERSION="0.7.2";
+const KEY="routine_v1", VERSION="0.7.4";
 
 let S={items:[],log:{},past:{},total:0,snd:true,vib:true,vol:1};
 let menuFor=null,moveFor=null,renaming=null,adding=null,dueFor=null,openClosed={},
@@ -239,14 +235,14 @@ function best(exceptToday){
   return b;
 }
 
-const WAVE_SHIFT=100, WAVE_W=800;      // сдвиг за цикл и длина полотна
+const WAVE_SHIFT=50, WAVE_W=800;      // сдвиг за цикл и длина полотна
 /* три синуса с периодами 100/50/25 — форма живая, но повторяется ровно через 100 */
 function wavePath(amp,y){
   let d="";
-  for(let x=0;x<=WAVE_W;x+=4){   // шаг делит период сдвига
-    const v=y-(Math.sin(x*Math.PI/50)*amp
-              +Math.sin(x*Math.PI/25+1.1)*amp*.5
-              +Math.sin(x*Math.PI/12.5+2.4)*amp*.26);
+  for(let x=0;x<=WAVE_W;x+=2){   // шаг делит период сдвига
+    const v=y-(Math.sin(x*Math.PI/25)*amp
+              +Math.sin(x*Math.PI/12.5+1.1)*amp*.5
+              +Math.sin(x*Math.PI/6.25+2.4)*amp*.26);
     d+=(x?" L":"M")+x+","+v.toFixed(2);
   }
   return d;
@@ -468,10 +464,11 @@ function render(){
       <div class="count ${burst?"swell":""} ${burst==="both"?"big":""}" style="color:${tc}">${d.length}</div>
       <div class="gap" style="color:${tc}">${
         routine.length===0?"добавь первый пункт":rk?RANKS[rk].t:`ещё ${left} до полного дня`}</div></div>
-    <div class="bars ${cheerRank?"cheer":""} ${rk?"merge":""} ${TI.i>=4?"fx"+(TI.i-3):""}">
+    <div class="bars ${cheerRank?"cheer":""} ${TI.i>=4?"fx"+(TI.i-3):""}">
       ${TI.i>=4?waveSVG([.85,.58,.4][TI.i-4],[2.8,3.3,3.9][TI.i-4],
           routine.length?Math.max(6,Math.round(doneR/routine.length*100)):100):""}
-      ${routine.map(r=>`<div class="bar ${d.includes(r.id)?"on":""}" style="${
+      ${[...routine.filter(r=>!d.includes(r.id)),...routine.filter(r=>d.includes(r.id))]
+        .map(r=>`<div class="bar ${d.includes(r.id)?"on":""}" style="${
         d.includes(r.id)?`background:${tc};box-shadow:0 0 ${rk?18:12}px ${tc}`:""}"></div>`).join("")}</div>
     ${parts.length?`<div class="mixbar">${parts.map(p=>
         `<i style="flex:${p.w};background:${p.c}"></i>`).join("")}</div>
@@ -516,7 +513,13 @@ function render(){
   }
   if(menuFor)h=`<div class="scrim" data-close="1"></div>`+h;
   if(moveFor)h+=`<button class="donebar" data-endmove="1">Готово — порядок сохранён</button>`;
+  const oldWave=document.querySelector(".wave");
+  const wavePhase=oldWave&&oldWave.getCurrentTime?oldWave.getCurrentTime():0;
   document.getElementById("app").innerHTML=h;
+  if(wavePhase){
+    const nw=document.querySelector(".wave");
+    if(nw&&nw.setCurrentTime)try{nw.setCurrentTime(wavePhase)}catch(e){}
+  }
   document.body&&document.body.classList.toggle("dragmode",!!moveFor);
   const f=document.getElementById("rn")||document.getElementById("ad");
   if(f){f.focus();f.setSelectionRange(f.value.length,f.value.length)}
