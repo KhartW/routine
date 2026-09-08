@@ -186,7 +186,7 @@ const CATS=[
  {id:"wish",title:"Желательное",sub:"хотелось бы, но не обязан",daily:true},
  {id:"needed",title:"Нужно сделать",sub:"без даты",daily:false},
  {id:"maybe",title:"Можно сделать",sub:"если захочется",daily:false}];
-const KEY="routine_v1", VERSION="0.11.3";
+const KEY="routine_v1", VERSION="0.11.4";
 
 let S={items:[],log:{},past:{},total:0,snd:true,vib:true,vol:1,lateDay:false};
 let menuFor=null,moveFor=null,renaming=null,adding=null,dueFor=null,openClosed={},
@@ -251,7 +251,8 @@ function scoreOf(date){
 }
 function best(exceptToday){
   const t=today(); let b={v:0,d:null};
-  const dates=new Set([...Object.keys(S.log),...S.items.filter(i=>i.doneAt).map(i=>i.doneAt)]);
+  const dates=new Set([...Object.keys(S.log),...Object.keys(S.past||{}),
+                       ...S.items.filter(i=>i.doneAt).map(i=>i.doneAt)]);
   for(const d of dates){ if(exceptToday&&d===t)continue;
     const v=scoreOf(d); if(v>b.v)b={v,d} }
   return b;
