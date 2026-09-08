@@ -288,7 +288,7 @@ const CATS=[
  {id:"wish",title:"Желательное",sub:"хотелось бы, но не обязан",daily:true},
  {id:"needed",title:"Нужно сделать",sub:"без даты",daily:false},
  {id:"maybe",title:"Можно сделать",sub:"если захочется",daily:false}];
-const KEY="routine_v1", VERSION="0.21.1";
+const KEY="routine_v1", VERSION="0.21.3";
 
 let S={v:2,items:[],log:{},days:{},backupEvery:7,snd:true,vib:true,vol:1,lateDay:false};
 let menuFor=null,moveFor=null,renaming=null,adding=null,dueFor=null,diffFor=null,
@@ -665,20 +665,31 @@ function backupDue(){
 function backupName(){return `pf-backup-${today()}.json`}
 function exportData(){
   const data=JSON.stringify(S,null,1), name=backupName();
-  S.lastBackup=today(); store.save();
+  const finish=msg=>{S.lastBackup=today();store.save();bkpMsg=msg;render()};
+  const download=()=>{
+    try{
+      const url=URL.createObjectURL(new Blob([data],{type:"application/json"}));
+      const a=document.createElement("a"); a.href=url; a.download=name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+      finish("Файл сохранён в загрузки: "+name);
+    }catch(e){bkpMsg="Не удалось сохранить файл: "+(e&&e.message||"ошибка");render()}
+  };
   try{
     const file=new File([data],name,{type:"application/json"});
-    if(navigator.canShare&&navigator.canShare({files:[file]})){
-      navigator.share({files:[file],title:name}).catch(()=>{});
-      return "Копия отправлена — выбери, куда сохранить.";
+    if(navigator.canShare&&navigator.canShare({files:[file]})&&navigator.share){
+      navigator.share({files:[file],title:name})
+        .then(()=>finish("Копия сохранена"))
+        .catch(err=>{
+          if(err&&err.name==="AbortError"){bkpMsg="Отменено — копия не сохранена";render()}
+          else download();                       // система отказала — сохраняем файлом
+        });
+      return;
     }
   }catch(e){}
-  const url=URL.createObjectURL(new Blob([data],{type:"application/json"}));
-  const a=document.createElement("a"); a.href=url; a.download=name;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),1000);
-  return "Файл скачан: "+name;
+  download();
 }
+
 function applyImport(text,note){
   let d;
   try{d=JSON.parse(text)}catch(e){note("Не похоже на файл копии — не удалось прочитать.");return}
@@ -730,16 +741,21 @@ function icsFor(it){
 function exportICS(id){
   const it=S.items.find(x=>x.id===id); if(!it||!it.due)return;
   const text=icsFor(it), name=`${it.text.replace(/[^\p{L}\p{N} _-]/gu,"").trim().slice(0,40)||"срок"}.ics`;
+  const download=()=>{
+    const url=URL.createObjectURL(new Blob([text],{type:"text/calendar"}));
+    const a=document.createElement("a"); a.href=url; a.download=name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
   try{
     const file=new File([text],name,{type:"text/calendar"});
-    if(navigator.canShare&&navigator.canShare({files:[file]})){
-      navigator.share({files:[file],title:it.text}).catch(()=>{}); return;
+    if(navigator.canShare&&navigator.canShare({files:[file]})&&navigator.share){
+      navigator.share({files:[file],title:it.text})
+        .catch(err=>{if(!err||err.name!=="AbortError")download()});
+      return;
     }
   }catch(e){}
-  const url=URL.createObjectURL(new Blob([text],{type:"text/calendar"}));
-  const a=document.createElement("a"); a.href=url; a.download=name;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  download();
 }
 
 /* ---------- отрисовка ---------- */
@@ -1205,7 +1221,7 @@ document.addEventListener("click",e=>{
   if(a("notes")){notes=true;return render()}
   if(a("notesback")){notes=false;return render()}
   if(a("bkphide")){S.backupHidden=today();store.save();return render()}
-  if(a("export")){bkpMsg=exportData();return render()}
+  if(a("export")){bkpMsg="сохраняем…";render();exportData();return}
   if(a("import")){
     const n=document.getElementById("backupnote");
     pickImport(t=>{const el=document.getElementById("backupnote"); (el||n).textContent=t}); return}
