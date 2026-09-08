@@ -66,7 +66,6 @@
   .fx1 .bar.on,.fx2 .bar.on,.fx3 .bar.on{animation:breathe 2.4s ease-in-out infinite}
   .fx2 .bar.on{animation-duration:1.8s}.fx3 .bar.on{animation-duration:1.2s}
   .lvlbar{position:relative;overflow:visible}
-  .lvlbar .wire{height:3px}.lvlbar .wire2{height:8px;opacity:.4}
   .week{display:flex;gap:6px;margin-top:20px;align-items:flex-end}
   .wk{flex:1;text-align:center}
   .wk i{display:block;border-radius:2px;background:var(--line);transition:height .4s}
@@ -116,21 +115,8 @@
     color:var(--text);font-size:15px;padding:11px 12px;border-radius:8px;cursor:pointer}
   .menu .lab{color:var(--dim);font-size:11px;padding:4px 12px 6px}
   .menu hr{border:none;border-top:1px solid var(--line);margin:5px 8px}
-  .duebox{background:var(--surf2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:7px}
-  .duebox div{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--dim)}
   .sgroup select{background:var(--bg);border:1px solid var(--line);border-radius:10px;
     padding:9px 10px;color:var(--text);font-size:14px;font-family:inherit;max-width:52%}
-  .duebox input,.duebox select{background:var(--bg);border:1px solid var(--line);border-radius:8px;
-    padding:9px 10px;color:var(--text);font-size:15px;flex:1;font-family:inherit}
-  .duebox .acts{display:flex;gap:8px;margin:0}
-  .diffrow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0}
-  .diffbtn{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 8px;
-    color:var(--dim);font-size:14px;cursor:pointer;display:flex;flex-direction:column;gap:3px;align-items:center}
-  .diffbtn s{text-decoration:none;font-size:10px;opacity:.6}
-  .diffbtn.on{border-color:var(--acc,var(--amber));color:var(--text);background:var(--surf2)}
-  .difftag{font-size:10px;white-space:nowrap;flex:0 0 auto;padding:3px 7px;border-radius:20px;
-    border:1px solid currentColor;opacity:.8}
-  .d-low{color:var(--dim)}.d-high{color:#ffb46b}.d-max{color:#ff6b8a}
   .addbtn{background:none;border:1px dashed var(--line);border-radius:10px;padding:11px 14px;
     color:var(--dim);font-size:14px;width:100%;text-align:left;cursor:pointer;margin-top:4px}
   .addrow{display:flex;gap:8px;margin-top:8px}
@@ -141,9 +127,6 @@
     color:var(--bg);font-size:15px;cursor:pointer;white-space:nowrap}
   .ghost{background:none;border:1px solid var(--line);border-radius:10px;padding:9px 14px;color:var(--dim);font-size:14px;cursor:pointer}
   .empty{color:var(--dim);font-size:13px;padding:6px 0}
-  .closed{color:var(--dim);font-size:12px;margin-top:6px}
-  .closed div{margin-top:7px;display:flex;gap:10px;align-items:center}
-  .closed b{color:var(--sage);font-weight:400;cursor:pointer}
   .scrim{position:fixed;inset:0;z-index:55}
   .donebar{position:fixed;left:0;right:0;bottom:0;z-index:70;background:var(--amber);color:var(--bg);
     border:none;width:100%;padding:18px calc(18px + env(safe-area-inset-bottom));font-size:16px;cursor:pointer}
@@ -225,9 +208,6 @@
   .etext.is-done{color:var(--dim);text-decoration:line-through;cursor:pointer}
   .undo{display:inline-block;margin-left:8px;font-size:10px;font-weight:400;color:var(--sage);
     text-decoration:none;border:1px solid currentColor;border-radius:20px;padding:2px 7px}
-  .emove{background:none;border:none;color:var(--dim);font-size:15px;padding:6px 5px;cursor:pointer}
-  .emove[disabled]{opacity:.25}
-  .emove.del{color:var(--red)}
   .finale{margin-top:30px;text-align:center}
   .fintitle{font:400 24px Georgia,serif;color:var(--gold);text-shadow:0 0 26px #e0a45855;margin-bottom:18px}
   .finlist{text-align:left;margin-bottom:20px}
@@ -308,10 +288,10 @@ const CATS=[
  {id:"wish",title:"Желательное",sub:"хотелось бы, но не обязан",daily:true},
  {id:"needed",title:"Нужно сделать",sub:"без даты",daily:false},
  {id:"maybe",title:"Можно сделать",sub:"если захочется",daily:false}];
-const KEY="routine_v1", VERSION="0.20.0";
+const KEY="routine_v1", VERSION="0.21.1";
 
-let S={v:2,items:[],log:{},days:{},backupEvery:7,total:0,snd:true,vib:true,vol:1,lateDay:false};
-let menuFor=null,moveFor=null,renaming=null,adding=null,dueFor=null,diffFor=null,openClosed={},
+let S={v:2,items:[],log:{},days:{},backupEvery:7,snd:true,vib:true,vol:1,lateDay:false};
+let menuFor=null,moveFor=null,renaming=null,adding=null,dueFor=null,diffFor=null,
     pulse=null,cheerRank=0,burst=null,record=false,tierUp=0,settings=false,bkpMsg=null,taskFor=null,taskEdit=false,notes=false,stepPulse=null,stepMenu=null,stepMove=null,stepAdding=false;
 
 const ACC={routine:"#e0457b",wish:"#e0a458",needed:"#46c48c",maybe:"#8f9ad6"};
@@ -372,8 +352,20 @@ function scoreOfRecord(rec){
   return Math.round(sc*10)/10;
 }
 
-function sweep(){
+function resetDailySteps(){
   const t=today(); let changed=false;
+  for(const it of S.items){
+    const cat=CATS.find(c=>c.id===it.cat);
+    if(!cat||!cat.daily||!(it.steps||[]).length)continue;
+    if(it.stepsDay===t)continue;
+    if(it.stepsDay!==undefined)                       // новый день — начинаем шаги заново
+      for(const st of it.steps)delete st.done;
+    it.stepsDay=t; changed=true;
+  }
+  return changed;
+}
+function sweep(){
+  const t=today(); let changed=resetDailySteps();
   if(!S.days)S.days={};
   const dates=new Set([...Object.keys(S.log),...S.items.filter(i=>i.doneAt).map(i=>i.doneAt)]);
   for(const d of dates){                       // прожитый день сворачиваем в состав
@@ -596,7 +588,7 @@ function toggle(id){
 }
 
 function reward(id,kind,wasRecord,tierBefore){
-  pulse=id;S.total++;
+  pulse=id;
   const tiA=tierOf(scoreOf(today())).i;
   tierUp=(tiA>tierBefore&&tiA>=4)?tiA:0;      // не тянем эффект на следующие отметки
   if(tierUp)tierSound(tierUp);
@@ -832,7 +824,7 @@ function stepTier(doneN,total){
 
 function taskHTML(){
   const it=S.items.find(x=>x.id===taskFor);
-  if(!it){taskFor=null;return ""}
+  if(!it){taskFor=null;return null}
   const steps=stepsOf(it), done=steps.filter(x=>x.done), cur=steps.find(x=>!x.done);
   const allDone=steps.length>0&&!cur;
   const head=`<div class="shead"><button class="back" data-taskback="1">‹</button>
@@ -899,6 +891,11 @@ function taskHTML(){
 }
 
 const CHANGELOG=[
+ ["0.21.0","Шаги везде",[
+   "Шаги можно добавить к любому делу, включая рутину и желательное",
+   "У ежедневных дел шаги остаются, а прогресс сбрасывается вместе с днём",
+   "Долгое нажатие на дело открывает его шаги",
+   "Карточка текущего шага растёт в ранге по мере продвижения"]],
  ["0.18.0","Шаги",[
    "Дело можно разбить на шаги: виден только текущий, сделанные копятся сверху",
    "Отдельный экран задачи с режимом правки",
@@ -954,7 +951,7 @@ function notesHTML(){
 
 function dueHTML(){
   const it=S.items.find(x=>x.id===dueFor);
-  if(!it){dueFor=null;return ""}
+  if(!it){dueFor=null;return null}
   const w=it.warn===undefined?3:it.warn;
   let state=`<span class="pill">без срока</span>`;
   if(it.due){                       // считаем прямо от даты: у закрытого дела подпись тоже нужна
@@ -994,7 +991,7 @@ function dueHTML(){
 
 function diffHTML(){
   const it=S.items.find(x=>x.id===diffFor);
-  if(!it){diffFor=null;return ""}
+  if(!it){diffFor=null;return null}
   const cur=it.diff||"mid";
   return `<div class="shead"><button class="back" data-diffback="1">‹</button><h2>Сложность</h2></div>
     <div class="difftask">${esc(it.text)}</div>
@@ -1058,15 +1055,19 @@ function settingsHTML(){
 function render(){
   sweep();
   if(dueFor){
-    document.getElementById("app").innerHTML=dueHTML();
-    return;
+    const html=dueHTML();
+    if(html===null)return render();
+    document.getElementById("app").innerHTML=html; return;
   }
   if(diffFor){
-    document.getElementById("app").innerHTML=diffHTML();
-    return;
+    const html=diffHTML();
+    if(html===null)return render();
+    document.getElementById("app").innerHTML=html; return;
   }
   if(taskFor){
-    document.getElementById("app").innerHTML=taskHTML();
+    const html=taskHTML();
+    if(html===null)return render();
+    document.getElementById("app").innerHTML=html;
     document.body&&document.body.classList.toggle("dragmode",!!stepMove);
     const f=stepAdding?document.getElementById("stepin"):null;
     if(f){f.focus();f.value=""}
@@ -1140,16 +1141,10 @@ function render(){
   for(const cat of CATS){
     const list=byCat(cat.id);
     const vis=cat.daily?list:list.filter(i=>!i.done||i.doneAt===t);
-    const bur=[];
     h+=`<section><h2>${cat.title}</h2><div class="sub">${cat.sub}</div><div class="list" data-cat="${cat.id}">`;
     if(!vis.length)h+=`<div class="empty">Пусто. Добавь ниже.</div>`;
     for(const it of vis)h+=rowHTML(it,cat,false);
     h+=`</div>`;
-    if(bur.length){
-      h+=`<div class="closed"><span data-closed="${cat.id}">закрыто раньше: ${bur.length} ${openClosed[cat.id]?"▴":"▾"}</span>`;
-      if(openClosed[cat.id])for(const b of bur)h+=`<div><s>${esc(b.text)}</s><b data-toggle="${b.id}">вернуть</b></div>`;
-      h+=`</div>`;
-    }
     h+=adding===cat.id?`<div class="addrow"><input id="ad" placeholder="Что добавить"><button class="ok" data-add="${cat.id}">ок</button></div>`
       :`<button class="addbtn" data-open="${cat.id}">+ добавить</button>`;
     h+=`</section>`;
@@ -1180,8 +1175,8 @@ const menu=(it,cat)=>`<div class="menu">
   <button data-rn="${it.id}">Переименовать</button>
   ${cat.daily?"":`<button data-due="${it.id}">${it.due?"Изменить срок":"Поставить срок"}</button>
   <button data-diff="${it.id}">Сложность: ${DIFF[it.diff||"mid"].name}</button>
-  ${it.due?`<button data-ics="${it.id}">Напомнить в календаре</button>`:""}
-  <button data-task="${it.id}">${(it.steps||[]).length?"Открыть шаги":"Разбить на шаги"}</button>`}
+  ${it.due?`<button data-ics="${it.id}">Напомнить в календаре</button>`:""}`}
+  <button data-task="${it.id}">${(it.steps||[]).length?"Открыть шаги":"Разбить на шаги"}</button>
   <button data-mv="${it.id}">Переместить</button>
   <hr><button data-del="${it.id}" style="color:var(--red)">Удалить</button></div>`;
 
@@ -1279,7 +1274,6 @@ document.addEventListener("click",e=>{
   const op=a("open"); if(op){adding=op;return render()}
   const ad=a("add"); if(ad){const v=document.getElementById("ad").value.trim();
     if(v)S.items.push({id:uid(),cat:ad,text:v});adding=null;store.save();return render()}
-  const cl=a("closed"); if(cl){openClosed[cl]=!openClosed[cl];return render()}
 });
 document.addEventListener("keydown",e=>{if(e.key!=="Enter")return;
   if(document.getElementById("stepin"))document.querySelector("[data-stepadd]")?.click();
